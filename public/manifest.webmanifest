@@ -1,0 +1,23 @@
+{
+  "id": "/",
+  "name": "JARVIS",
+  "short_name": "JARVIS",
+  "description": "Voice assistant powered by Claude",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#03080f",
+  "theme_color": "#03080f",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Inspect Pro", "url": "/pro", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Inspect something", "url": "/inspect", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Glasses view", "url": "/glasses", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -1,0 +1,9 @@
+node_modules
+.next
+.env.local
+data/
+certificates/
+.next-test
+public/jarvis-ca.crt
+tsconfig.tsbuildinfo
+*.log
