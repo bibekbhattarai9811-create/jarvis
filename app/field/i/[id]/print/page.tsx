@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/proClient";
 import type { Incident } from "@/lib/field";
+import { publicScrubber } from "@/lib/redact";
 
 type Data = { incident: Incident; fingerprint: string; department: string };
 const img = (i: string, p: string, png = false) => `/api/field/photo?i=${i}&p=${p}${png ? "&t=png" : ""}`;
@@ -25,37 +26,9 @@ export default function PrintIncident() {
 
   if (!d) return <p style={{ padding: 20, color: "#111", background: "#fff" }}>{error || "Loading…"}</p>;
   const i = d.incident;
-  // Public version: names and phone numbers in the AI-written text become roles ("Witness 1", "the reporting officer").
-  // [full name, role, also replace single first/last names?] (only for witnesses: an officer field like
-  // "Officer Street #12" shouldn't turn every "Street" into a role)
-  const names: [string, string, boolean][] = [
-    ...i.statements.flatMap((s, n) => (s.name.trim().length > 1 ? [[s.name.replace(/\s*\(.*\)\s*$/, "").trim(), `Witness ${n + 1}`, true] as [string, string, boolean]] : [])),
-    ...i.ids.flatMap((x) => (x.fields.fullName.trim().length > 1 ? [[x.fields.fullName.trim(), x.role || "the person", true] as [string, string, boolean]] : [])),
-    ...(i.officer.trim() ? [[i.officer.trim(), "the reporting officer", false] as [string, string, boolean]] : []),
-  ];
-  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const scrub = (t: string) => {
-    if (!pub) return t;
-    let out = t;
-    for (const [name, role, parts] of names) {
-      out = out.replace(new RegExp(esc(name), "gi"), role);
-      // First / last names on their own too (any case: IDs print names in capitals). Over-redacting is the safe side.
-      if (parts) for (const part of name.split(/[\s,]+/).filter((p) => /^[A-Za-z][A-Za-z'-]{2,}$/.test(p))) out = out.replace(new RegExp(`\\b${esc(part)}\\b`, "gi"), role);
-    }
-    // Details read from ID cards: date of birth (any common format), ID number, street address.
-    for (const x of i.ids) {
-      const { dob, idNumber, address } = x.fields;
-      const m = dob.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      const dobs = m ? [dob, `${m[2]}/${m[3]}/${m[1]}`, `${+m[2]}/${+m[3]}/${m[1]}`] : dob ? [dob] : [];
-      for (const v of dobs) out = out.replace(new RegExp(esc(v), "g"), "[removed]");
-      if (idNumber.replace(/\s/g, "").length > 3) out = out.replace(new RegExp(idNumber.replace(/\s/g, "").split("").map(esc).join("\\s?"), "gi"), "[ID number removed]");
-      const street = address.split(",")[0].trim();
-      if (street.length > 4) out = out.replace(new RegExp(esc(street), "gi"), "[address removed]");
-    }
-    out = out.replace(/\b(date of birth|DOB)[:,]?\s+(?!\[)[^,.;)]+/gi, "$1 [removed]");
-    out = out.replace(/(identified as|named) (Witness \d+|the reporting officer)/gi, "$2");
-    return out.replace(/\b(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g, "[phone removed]");
-  };
+  // Public version: names, ID details and phone numbers in the AI-written text become roles or "[removed]".
+  const publicScrub = publicScrubber(i);
+  const scrub = (t: string) => (pub ? publicScrub(t) : t);
   const raw = i.draft?.result;
   const r = raw && {
     ...raw,

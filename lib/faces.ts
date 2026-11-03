@@ -3,10 +3,11 @@
 
 import fs from "fs";
 import path from "path";
+import { dataDir } from "./paths";
 
 export type KnownFace = { name: string; descriptors: number[][]; addedAt: string };
 
-const FILE = path.join(process.cwd(), "data", "faces.json");
+const FILE = path.join(dataDir(), "faces.json");
 const MAX_SAMPLES = 20;
 
 export function listFaces(): KnownFace[] {

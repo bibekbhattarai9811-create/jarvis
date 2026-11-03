@@ -3,6 +3,8 @@ import { think, type Action, type Turn } from "@/lib/brain";
 import { forget, remember } from "@/lib/memory";
 import { runOnPc } from "@/lib/pc";
 import { quickReply } from "@/lib/quick";
+import { demoReply } from "@/lib/demoAnswers";
+import { isDemo } from "@/lib/paths";
 
 export const runtime = "nodejs";
 
@@ -27,6 +29,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { message?: unknown; history?: unknown; device?: unknown };
   const message = typeof body.message === "string" ? body.message.trim().slice(0, 2000) : "";
   if (!message) return Response.json({ error: "Say something first." }, { status: 400 });
+  if (isDemo()) return Response.json({ ...demoReply(message), engine: "instant" });
   // Only well-formed past turns, kept short.
   const history: Turn[] = (Array.isArray(body.history) ? body.history : [])
     .filter((t): t is Turn => !!t && (t.role === "user" || t.role === "assistant") && typeof t.text === "string")
@@ -75,7 +78,7 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   const role = roleOf(req);
   if (!role) return denied(req);
-  const body = { ok: true, role, engine: process.env.ANTHROPIC_API_KEY ? "api" : "cli" };
+  const body = { ok: true, role: isDemo() ? "demo" : role, engine: isDemo() ? "demo" : process.env.ANTHROPIC_API_KEY ? "api" : "cli" };
   // Owner devices also get the signed login cookie, so they stay in even while wrong guesses lock others out.
   return role === "owner" ? json(req, body) : Response.json(body);
 }

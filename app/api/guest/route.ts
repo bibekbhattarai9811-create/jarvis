@@ -1,10 +1,11 @@
 import { authed, denied, getGuest, json, logSecurity, updateGuest } from "@/lib/auth";
+import { isDemo } from "@/lib/paths";
 
 export const runtime = "nodejs";
 
 /** Owner: see guest access (on/off + code). */
 export async function GET(req: Request) {
-  if (!authed(req)) return denied(req);
+  if (!authed(req) || isDemo()) return denied(req);
   return json(req, getGuest());
 }
 

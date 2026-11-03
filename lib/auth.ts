@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { dataDir, isDemo } from "./paths";
 
 // Who's calling?
 //   owner = your passcode (JARVIS_PIN in .env.local): everything, including PC control and Inspect Pro.
@@ -12,7 +13,7 @@ import path from "path";
 
 export type Role = "owner" | "guest";
 
-const DATA = path.join(process.cwd(), "data");
+const DATA = dataDir();
 const COOKIE = "jarvis_auth";
 
 /** Random per-install secret for signing cookies (data/secret.key, created on first use). */
@@ -97,6 +98,7 @@ const sign = (role: Role, key: string) => `${role}.${crypto.createHmac("sha256",
 
 /** Who is this request from? null = nobody (wrong/missing passcode or locked out). */
 export function roleOf(req: Request): Role | null {
+  if (isDemo()) return "guest"; // live demo: everyone is a guest (no PC, no memory, read-only data)
   const pin = process.env.JARVIS_PIN;
   if (!pin) return "owner"; // no passcode configured: local-only setup
   const cookie = (req.headers.get("cookie") || "").split(/;\s*/).find((c) => c.startsWith(`${COOKIE}=`));
@@ -111,14 +113,14 @@ export function roleOf(req: Request): Role | null {
   return null;
 }
 
-/** Owner-only routes. */
-export const authed = (req: Request) => roleOf(req) === "owner";
+/** Owner-only routes. In the live demo, anyone may read (GET) the sample data and nobody may change it. */
+export const authed = (req: Request) => (isDemo() ? req.method === "GET" : roleOf(req) === "owner");
 
 /** JSON response that also refreshes the owner's login cookie (call only after authed() passed). */
 export function json(req: Request, body: unknown, status = 200): Response {
   const res = Response.json(body, { status });
   const pin = process.env.JARVIS_PIN;
-  if (pin) {
+  if (pin && !isDemo()) {
     const secure = new URL(req.url).protocol === "https:" || req.headers.get("x-jarvis-https") ? "; Secure" : "";
     res.headers.append("set-cookie", `${COOKIE}=${sign("owner", pin)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000${secure}`);
   }
@@ -127,6 +129,8 @@ export function json(req: Request, body: unknown, status = 200): Response {
 
 /** 401, or 429 with how long to wait when the address is locked out. */
 export function denied(req?: Request): Response {
+  if (isDemo())
+    return Response.json({ error: "This is a read-only live demo. Run Jarvis on your own PC to make changes (see the GitHub repo)." }, { status: 403 });
   const mins = req ? lockedOut(req) : 0;
   return mins
     ? Response.json({ error: `Too many wrong passcodes. Try again in ${mins} minute${mins === 1 ? "" : "s"}.` }, { status: 429 })

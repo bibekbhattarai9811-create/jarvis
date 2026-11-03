@@ -64,7 +64,7 @@ export default function Home() {
   const [pin, setPin] = useState("");
   const [needPin, setNeedPin] = useState(false);
   const [pinError, setPinError] = useState("");
-  const [role, setRole] = useState<"owner" | "guest" | "">("");
+  const [role, setRole] = useState<"owner" | "guest" | "demo" | "">(process.env.NEXT_PUBLIC_DEMO === "1" ? "demo" : "");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceName, setVoiceName] = useState("");
   const [showSettings, setShowSettings] = useState(false);
@@ -77,7 +77,9 @@ export default function Home() {
   const history = useRef<Turn[]>([]);
   const rec = useRef<Recognizer | null>(null);
   const statusRef = useRef<Status>("idle");
-  const wakeOn = useRef(true); // always listening for "Jarvis" (off only if the mic is blocked)
+  // Always listening for "Jarvis" (off if the mic is blocked). The public demo waits for a tap instead of asking
+  // every visitor for the microphone the moment the page opens.
+  const wakeOn = useRef(process.env.NEXT_PUBLIC_DEMO !== "1");
   const armed = useRef(false); // heard "Jarvis" alone: next sentence is the command
   const logEnd = useRef<HTMLDivElement>(null);
 
@@ -323,7 +325,7 @@ export default function Home() {
 
   // Start listening for "Jarvis" / "Hey Jarvis" as soon as the page opens.
   useEffect(() => {
-    if (getRecognizerClass()) listenRef.current("wake");
+    if (getRecognizerClass() && wakeOn.current) listenRef.current("wake");
     return () => {
       wakeOn.current = false;
       stopListening();
@@ -366,7 +368,7 @@ export default function Home() {
   };
 
   const hint = {
-    idle: canListen ? 'Say "Hey Jarvis…" or tap the orb' : "Voice isn't supported in this browser. Type below.",
+    idle: !canListen ? "Voice isn't supported in this browser. Type below." : wakeOn.current ? 'Say "Hey Jarvis…" or tap the orb' : "Tap the orb and speak, or type below",
     listening: interim || (followUp ? "Anything else? Just speak…" : "Listening…"),
     thinking: "Thinking…",
     speaking: "Tap to interrupt",
@@ -377,7 +379,11 @@ export default function Home() {
       <header>
         <div className="brand">
           J.A.R.V.I.S.
-          {engine && <span className="engine" title={engine === "api" ? "Anthropic API" : "Your Claude app login"}>{engine === "api" ? "API" : "Claude"}</span>}
+          {engine && (
+            <span className="engine" title={engine === "demo" ? "Live demo: sample answers" : engine === "api" ? "Anthropic API" : "Your Claude app login"}>
+              {engine === "demo" ? "Demo" : engine === "api" ? "API" : "Claude"}
+            </span>
+          )}
         </div>
         <div className="controls">
           <button
@@ -402,11 +408,13 @@ export default function Home() {
           >
             <span className="dot" /> 🎮
           </button>
-          {role === "owner" && (
+          {(role === "owner" || role === "demo") && (
             <>
-              <a className="pill" href="/inspect" title="Inspect something">
-                🔍
-              </a>
+              {role === "owner" && (
+                <a className="pill" href="/inspect" title="Inspect something">
+                  🔍
+                </a>
+              )}
               <a className="pill" href="/pro" title="Inspect Pro: rental condition reports">
                 📋
               </a>
@@ -473,7 +481,9 @@ export default function Home() {
       <section className="log">
         {lines.length === 0 && (
           <p className="empty">
-            {role === "guest"
+            {role === "demo"
+              ? "Try: “What can you do?” · “Set a 1 minute timer” · “Play lofi on YouTube” · tap HOLO and pinch an orb · 🚓 Field Assist · 📋 Inspect Pro"
+              : role === "guest"
               ? "Guest mode · Try: “What's the weather?” · “Play lofi on YouTube” · “Set a 5 minute timer” · or tap HOLO"
               : "Try: “What's the weather?” · “Open YouTube and play lofi” · “Open Spotify on my PC” · “Set a 5 minute timer” · “Remember my exam is on Friday”"}
           </p>

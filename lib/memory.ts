@@ -1,7 +1,8 @@
 import fs from "fs";
 import path from "path";
+import { dataDir } from "./paths";
 
-const FILE = path.join(process.cwd(), "data", "memory.json");
+const FILE = path.join(dataDir(), "memory.json");
 
 export function listMemory(): string[] {
   try {

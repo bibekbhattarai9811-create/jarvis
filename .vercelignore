@@ -1,0 +1,13 @@
+# Never upload private files to the live demo (Vercel uses this list, not .gitignore).
+.env
+.env.*
+!.env.example
+data
+certificates
+public/jarvis-ca.crt
+.next
+.next-*
+node_modules
+*.log
+.vercel
+tsconfig.tsbuildinfo

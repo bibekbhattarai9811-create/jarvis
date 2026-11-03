@@ -1,0 +1,109 @@
+{
+  "id": "mvr3x5rignbe",
+  "createdAt": "2026-10-27T19:57:15.246Z",
+  "updatedAt": "2026-10-27T19:57:35.934Z",
+  "kind": "move-in",
+  "property": "123 Test St, Jonesboro, AR",
+  "unit": "2B",
+  "inspector": "Jarvis test",
+  "tenant": "Test Tenant",
+  "date": "2026-08-01",
+  "notes": "",
+  "rooms": [
+    {
+      "name": "Entry",
+      "notes": "",
+      "photos": []
+    },
+    {
+      "name": "Living room",
+      "notes": "",
+      "photos": []
+    },
+    {
+      "name": "Kitchen",
+      "notes": "",
+      "photos": []
+    },
+    {
+      "name": "Bathroom",
+      "notes": "",
+      "photos": []
+    },
+    {
+      "name": "Bedroom 1",
+      "notes": "",
+      "photos": [
+        {
+          "id": "mvr3x7bvyoso",
+          "at": "2026-10-27T19:57:17.276Z",
+          "status": "done",
+          "result": {
+            "object": "bedroom with bed and bookshelves",
+            "category": "household",
+            "condition": "good",
+            "score": 8,
+            "summary": "The bedroom looks clean and well kept. The walls, parquet floor and built-in fixtures show no obvious damage. The photo is a low-resolution stitched panorama with uneven lighting, so small scuffs, stains or nail holes may not show and should be checked in person.",
+            "issues": [
+              {
+                "label": "Loose lamp cord along dresser",
+                "severity": "low",
+                "detail": "The floor lamp's power cord hangs down the front right of the dresser to the floor near the wall outlet. Someone could trip on it or pull the lamp over.",
+                "x": 0.95,
+                "y": 0.75,
+                "type": "safety"
+              },
+              {
+                "label": "Exposed cords under side table",
+                "severity": "low",
+                "detail": "Speaker or charger cables run loose from the left side table down to the floor near the baseboard outlet. This is a minor trip and snag hazard.",
+                "x": 0.04,
+                "y": 0.85,
+                "type": "safety"
+              },
+              {
+                "label": "Smoke detector not visible",
+                "severity": "medium",
+                "detail": "The ceiling isn't in the frame, so the photo can't show whether a smoke detector is fitted in this bedroom. Its presence and working state need to be recorded.",
+                "x": 0.5,
+                "y": 0.02,
+                "type": "safety"
+              },
+              {
+                "label": "Loose rug in hallway",
+                "severity": "low",
+                "detail": "A thin runner rug lies on the hallway parquet just outside the bedroom door. It has no visible non-slip backing, so it's a possible slip or trip hazard.",
+                "x": 0.82,
+                "y": 0.82,
+                "type": "safety"
+              },
+              {
+                "label": "Minor floor finish wear",
+                "severity": "low",
+                "detail": "The parquet near the doorway and at the foot of the bed shows uneven sheen, which may be light finish wear in the walkway. Glare and the low resolution make this uncertain.",
+                "x": 0.78,
+                "y": 0.9,
+                "type": "wear"
+              },
+              {
+                "label": "Photo quality limits inspection",
+                "severity": "low",
+                "detail": "This is a stitched panorama with a visible color seam through the middle and an overexposed lamp area on the right. Fine defects like scuffs, nail holes and stains on the walls and baseboards can't be confirmed.",
+                "x": 0.52,
+                "y": 0.5,
+                "type": "other"
+              }
+            ],
+            "actions": [
+              "Check that a working smoke detector is installed in or just outside Bedroom 1, test it, and photograph it for the report.",
+              "Tidy the lamp and speaker cords along the walls or behind furniture so they aren't trip hazards.",
+              "Take close-up, evenly lit photos of the walls, baseboards, door frame and parquet to record any small scuffs, holes or stains.",
+              "Fit a non-slip pad under the hallway rug or note that it belongs to the tenant."
+            ],
+            "safety": "Confirm a working smoke detector is present. None is visible in this photo."
+          }
+        }
+      ]
+    }
+  ]
+}

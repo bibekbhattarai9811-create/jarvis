@@ -4,8 +4,9 @@
 import fs from "fs";
 import path from "path";
 import { compareRoom, inspect, type Inspection, type RoomComparison } from "./brain";
+import { dataDir } from "./paths";
 
-const ROOT = path.join(process.cwd(), "data", "pro");
+const ROOT = path.join(dataDir(), "pro");
 
 export type Photo = { id: string; at: string; status: "analyzing" | "done" | "error"; error?: string; result?: Inspection };
 export type Room = {

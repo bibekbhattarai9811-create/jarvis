@@ -1,0 +1,326 @@
+{
+  "id": "mvwo2mxxthwj",
+  "createdAt": "2026-10-31T17:20:13.989Z",
+  "updatedAt": "2026-11-02T02:43:52.264Z",
+  "title": "DEMO — Two-car crash, Caraway Rd & Highland Dr",
+  "location": "Caraway Rd & Highland Dr, Jonesboro AR",
+  "officer": "Demo Officer #000",
+  "notes": "[12:20 PM] Arrived on scene around 4:10 pm. Two vehicles in the intersection, a silver Honda Civic and a blue Ford F-150. Light rain, road wet.\n[12:20 PM] Driver of the Civic, adult female, says the light was green for her and the truck turned left in front of her. She complained of neck pain, EMS checked her on scene and she declined transport.\n[12:20 PM] Driver of the F-150, adult male, says he thought he had a green arrow. No injuries reported. Front left of the Civic heavily damaged, front right of the truck damaged.\n[12:20 PM] One witness at the gas station says the truck turned on a solid green, not an arrow. Got her phone number. Tow requested for the Civic.",
+  "photos": [],
+  "timeline": [
+    {
+      "at": "2026-10-31T17:20:13.989Z",
+      "kind": "open",
+      "text": "Incident opened"
+    },
+    {
+      "at": "2026-10-31T17:20:14.116Z",
+      "kind": "note",
+      "text": "Note: Arrived on scene around 4:10 pm. Two vehicles in the intersection, a silver Honda Civic and a blue Ford F-150. Light rain, road wet."
+    },
+    {
+      "at": "2026-10-31T17:20:14.211Z",
+      "kind": "note",
+      "text": "Note: Driver of the Civic, adult female, says the light was green for her and the truck turned left in front of her. She complained of neck pain, EMS checked her on scene and she declined transport."
+    },
+    {
+      "at": "2026-10-31T17:20:14.285Z",
+      "kind": "note",
+      "text": "Note: Driver of the F-150, adult male, says he thought he had a green arrow. No injuries reported. Front left of the Civic heavily damaged, front right of the truck damaged."
+    },
+    {
+      "at": "2026-10-31T17:20:14.358Z",
+      "kind": "note",
+      "text": "Note: One witness at the gas station says the truck turned on a solid green, not an arrow. Got her phone number. Tow requested for the Civic."
+    },
+    {
+      "at": "2026-10-31T17:20:28.827Z",
+      "kind": "draft",
+      "text": "Report drafted"
+    },
+    {
+      "at": "2026-10-31T17:20:35.559Z",
+      "kind": "translate",
+      "text": "Officer → Spanish: \"Is anyone hurt? Do you need an ambulance?\" = \"¿Hay alguien herido? ¿Necesita una ambulancia?\""
+    },
+    {
+      "at": "2026-10-31T17:20:40.714Z",
+      "kind": "translate",
+      "text": "Spanish → officer: \"No, estoy bien, pero me duele un poco el cuello.\" = \"No, I'm fine, but my neck hurts a little.\""
+    },
+    {
+      "at": "2026-10-31T17:20:40.844Z",
+      "kind": "checklist",
+      "text": "Started checklist: Traffic crash"
+    },
+    {
+      "at": "2026-10-31T17:20:40.931Z",
+      "kind": "checklist",
+      "text": "✓ Make the scene safe: lights, cones, move traffic"
+    },
+    {
+      "at": "2026-10-31T17:20:41.013Z",
+      "kind": "checklist",
+      "text": "✓ Check injuries; request EMS / fire / tow as needed"
+    },
+    {
+      "at": "2026-10-31T17:20:53.742Z",
+      "kind": "conditions",
+      "text": "Location Caraway Rd & Highland Dr, Jonesboro, Arkansas · overcast, 75°F, wind 5 mph"
+    },
+    {
+      "at": "2026-10-31T17:20:59.748Z",
+      "kind": "statement",
+      "text": "Statement from Sample Witness (Spanish, translated)"
+    },
+    {
+      "at": "2026-10-31T17:21:22.157Z",
+      "kind": "draft",
+      "text": "Report re-drafted"
+    },
+    {
+      "at": "2026-10-31T17:28:38.419Z",
+      "kind": "draft",
+      "text": "Report re-drafted"
+    },
+    {
+      "at": "2026-10-31T17:29:07.406Z",
+      "kind": "checklist",
+      "text": "✓ Note vehicle positions before anything is moved"
+    },
+    {
+      "at": "2026-10-31T17:29:09.199Z",
+      "kind": "checklist",
+      "text": "✓ Collect licenses, registration, insurance from each driver"
+    },
+    {
+      "at": "2026-10-31T17:29:10.201Z",
+      "kind": "checklist",
+      "text": "✓ Photograph each vehicle: four sides, damage close-ups"
+    },
+    {
+      "at": "2026-10-31T17:29:11.892Z",
+      "kind": "checklist",
+      "text": "✓ Photograph the road: skid marks, debris, signs, signals"
+    },
+    {
+      "at": "2026-10-31T17:29:12.591Z",
+      "kind": "checklist",
+      "text": "✓ Get statements from drivers and witnesses"
+    },
+    {
+      "at": "2026-10-31T17:29:12.766Z",
+      "kind": "checklist",
+      "text": "✓ Sketch the scene and note measurements"
+    },
+    {
+      "at": "2026-10-31T17:29:13.112Z",
+      "kind": "checklist",
+      "text": "✓ Give drivers the report number and exchange info"
+    },
+    {
+      "at": "2026-10-31T17:29:13.112Z",
+      "kind": "checklist",
+      "text": "Checklist complete: Traffic crash"
+    },
+    {
+      "at": "2026-11-02T02:43:28.975Z",
+      "kind": "diagram",
+      "text": "Scene diagram drawn"
+    },
+    {
+      "at": "2026-11-02T02:43:52.263Z",
+      "kind": "diagram",
+      "text": "Scene diagram updated"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-10-31T17:20:28.827Z",
+      "by": "Demo Officer #000",
+      "action": "drafted report with AI"
+    },
+    {
+      "at": "2026-10-31T17:21:22.157Z",
+      "by": "Demo Officer #000",
+      "action": "redrafted report with AI",
+      "before": "{\"summary\":\"I responded to a two-vehicle crash at Caraway Rd & Highland Dr in Jonesboro, AR, involving a silver Honda Civic and a blue Ford F-150 in the intersection. The Civic driver reported neck pain and declined EMS transport, the drivers gave differing accounts of the signal, and a witness gave a third-party account.\",\"narrative\":\"I arrived on scene at approximately 4:10 PM at Caraway Rd and Highland Dr in Jonesboro, AR. I observed two vehicles in the intersection, a silver Honda Civic and a blue Ford F-150. It was lightly raining and the road was wet.\\n\\nI spoke with the driver of the Civic, an adult female. She stated the traffic light was green for her and that the truck turned left in front of her. She complained of neck pain. EMS checked her on scene and she declined transport.\\n\\nI spoke with the driver of the F-150, an adult male. He stated he thought he had a green arrow. He reported no injuries.\\n\\nI observed heavy damage to the front left of the Civic and damage to the front right of the truck.\\n\\nI spoke with one witness at the gas station. Witness 1 stated the truck turned on a solid green, not an arrow. I obtained Witness 1's phone number. I requested a tow for the Civic.\",\"people\":[{\"role\":\"Driver of vehicle 1 (Honda Civic)\",\"description\":\"Adult female. Stated the light was green for her and the truck turned left in front of her. Complained of neck pain, was checked by EMS on scene, and declined transport.\"},{\"role\":\"Driver of vehicle 2 (Ford F-150)\",\"description\":\"Adult male. Stated he thought he had a green arrow. No injuries reported.\"},{\"role\":\"Witness 1\",\"description\":\"Located at the gas station. Stated the truck turned on a solid green, not an arrow. Phone number obtained.\"}],\"vehicles\":[{\"description\":\"Silver Honda Civic, heavy front left damage. Tow requested.\"},{\"description\":\"Blue Ford F-150, front right damage.\"}],\"evidence\":[\"Witness 1 verbal statement and phone number\",\"Driver statements from both vehicle drivers\",\"Observed vehicle damage (Civic front left, F-150 front right)\",\"EMS on-scene check of Civic driver (declined transport)\"],\"followUps\":[\"Follow up with Witness 1 for a formal statement\",\"Verify the signal phasing at Caraway Rd & Highland Dr (whether a green arrow exists for the left turn)\",\"Check for traffic or nearby business camera footage\",\"Follow up on the Civic driver's neck pain complaint\",\"Confirm the tow of the Civic was completed\"],\"missing\":[\"Names, contact info, and license/insurance details of both drivers?\",\"Witness 1's name and phone number?\",\"License plates for both vehicles?\",\"Direction of travel for each vehicle?\",\"Were any citations issued?\",\"Which EMS agency responded, and who evaluated the Civic driver?\",\"Were there any other injuries or passengers in either vehicle?\",\"Was the arrival time 4:10 PM, given the notes were entered at 12:20 PM?\",\"Exact time of the crash and time of dispatch?\",\"Were photos taken of the scene and damage?\",\"Where was the Civic towed to, and by which company?\",\"Was the F-150 drivable or towed?\"],\"sections\":[]}"
+    },
+    {
+      "at": "2026-10-31T17:28:38.419Z",
+      "by": "Demo Officer #000",
+      "action": "redrafted report with AI",
+      "before": "{\"summary\":\"Two-vehicle crash at Caraway Rd & Highland Dr in Jonesboro, AR, involving a silver Honda Civic and a blue Ford F-150. Both drivers gave conflicting accounts of the signal. The Civic driver reported neck pain, was checked by EMS, and declined transport.\",\"narrative\":\"I arrived on scene at approximately 4:10 PM at the intersection of Caraway Rd and Highland Dr in Jonesboro, AR. I observed two vehicles in the intersection, a silver Honda Civic and a blue Ford F-150. A light rain was falling and the road was wet.\\n\\nI observed heavy damage to the front left of the Civic and damage to the front right of the F-150. I made the scene safe with lights and cones and moved traffic, and I checked for injuries and requested EMS, fire, and tow as needed.\\n\\nThe driver of the Civic, an adult female, stated the light was green for her and that the F-150 turned left in front of her. Through Spanish-English translation, I asked whether anyone was hurt and whether an ambulance was needed. The response, translated into English, was \\\"No, I'm fine, but my neck hurts a little.\\\" The driver of the Civic complained of neck pain. EMS checked the driver of the Civic on scene, and the driver declined transport.\\n\\nThe driver of the F-150, an adult male, stated he thought he had a green arrow. He reported no injuries.\\n\\nWitness 1, who was at the gas station, stated, through Spanish-English translation, that the blue truck turned left on a green light, not on a green arrow. I obtained the witness's phone number. I requested a tow for the Civic.\",\"people\":[{\"role\":\"Driver of vehicle 1 (silver Honda Civic)\",\"description\":\"Adult female. Stated the light was green for her and the truck turned left in front of her. Complained of neck pain, was checked by EMS on scene, and declined transport.\"},{\"role\":\"Driver of vehicle 2 (blue Ford F-150)\",\"description\":\"Adult male. Stated he thought he had a green arrow. No injuries reported.\"},{\"role\":\"Witness 1 (listed as Sample Witness; statement translated from Spanish)\",\"description\":\"Was at the gas station. Stated the blue truck turned left on a green light, not on a green arrow. Phone number obtained.\"},{\"role\":\"EMS\",\"description\":\"Checked the driver of the Civic on scene.\"}],\"vehicles\":[{\"description\":\"Silver Honda Civic. Heavy damage to the front left. Tow requested.\"},{\"description\":\"Blue Ford F-150. Damage to the front right.\"}],\"evidence\":[\"Statement from Driver of the Civic (verbal, includes translated exchange about injury)\",\"Statement from Driver of the F-150 (verbal)\",\"Statement from Witness 1 (Sample Witness), translated from Spanish\",\"Witness 1 phone number obtained\",\"Vehicle damage observations for the Civic and F-150\",\"Traffic crash checklist: scene made safe; injuries checked and EMS/fire/tow requested as needed\"],\"followUps\":[\"Confirm and record signal phase and timing for the intersection (for example, whether a protected left-turn arrow exists for the F-150's direction)\",\"Follow up with Witness 1 using the phone number obtained\",\"Check for nearby video, such as the gas station or traffic cameras\",\"Follow up with the Civic driver on the neck pain complaint\",\"Complete tow documentation for the Civic\"],\"missing\":[\"What is the exact date and time of the crash and of my arrival? The notes say about 4:10 PM, but the system timestamps read 12:20 PM.\",\"Which location is correct? The notes say Caraway Rd & Highland Dr, but the automatic conditions list Caraway Rd & Highland Dr.\",\"Weather differs between sources: the notes say light rain, while the automatic conditions say overcast. Which should the report use?\",\"What are the names, contact details, and license and insurance information for both drivers?\",\"What are the plates, VINs, and model years of both vehicles?\",\"Who gave the Spanish-language answer about neck pain, the Civic driver or someone else? Did the Civic driver speak Spanish?\",\"Which direction was each vehicle traveling, and which direction was the F-150 turning from?\",\"Is the witness in the notes the same person as Sample Witness? What is the witness's full name and where was the witness positioned?\",\"Were any photos taken? None are listed.\",\"Were any citations issued? Which tow company was used and where was the Civic towed?\",\"Was anyone else in either vehicle?\",\"Was the F-150 driver asked about injuries, and was EMS offered to that driver?\"],\"sections\":[]}"
+    }
+  ],
+  "review": {
+    "status": "open"
+  },
+  "statements": [
+    {
+      "id": "mvwo3m8ywlvo",
+      "at": "2026-10-31T17:20:59.746Z",
+      "name": "Sample Witness",
+      "contact": "",
+      "language": "Spanish",
+      "original": "Yo estaba en la gasolinera. La camioneta azul gir� a la izquierda con la luz verde, no con flecha.",
+      "english": "I was at the gas station. The blue truck turned left on a green light, not on a green arrow.",
+      "readBack": true
+    }
+  ],
+  "draft": {
+    "at": "2026-10-31T17:28:38.419Z",
+    "result": {
+      "summary": "I responded to a two-vehicle crash at Caraway Rd & Highland Dr in Jonesboro, AR, involving a silver Honda Civic and a blue Ford F-150. The drivers gave conflicting accounts of the traffic signal, and the Civic driver complained of neck pain but declined transport.",
+      "narrative": "I arrived on scene at approximately 4:10 PM. I observed two vehicles in the intersection, a silver Honda Civic and a blue Ford F-150. There was light rain and the road was wet.\n\nThe driver of the Civic, an adult female, stated the light was green for her and the F-150 turned left in front of her. She complained of neck pain. EMS checked her on scene and she declined transport. I observed heavy damage to the front left of the Civic.\n\nThe driver of the F-150, an adult male, stated he thought he had a green arrow. He reported no injuries. I observed damage to the front right of the F-150.\n\nI spoke with one witness who was at the gas station. Witness 1 (Sample Witness), whose statement was translated from Spanish, stated the blue truck turned left on a green light, not on a green arrow. I obtained the witness's phone number. I requested a tow for the Civic.\n\nUsing Spanish translation, I asked whether anyone was hurt and whether an ambulance was needed. The Spanish-speaking person responded, as translated, \"No, I'm fine, but my neck hurts a little.\" I completed the scene safety and injury/EMS/tow checklist items for a traffic crash.",
+      "people": [
+        {
+          "role": "Driver of vehicle 1 (Honda Civic)",
+          "description": "Adult female. Stated her light was green and the truck turned left in front of her. Complained of neck pain, was checked by EMS on scene, and declined transport."
+        },
+        {
+          "role": "Driver of vehicle 2 (Ford F-150)",
+          "description": "Adult male. Stated he thought he had a green arrow. Reported no injuries."
+        },
+        {
+          "role": "Witness 1 (Sample Witness)",
+          "description": "Was at the gas station. Statement given in Spanish and translated. Stated the truck turned left on a solid green, not a green arrow. Phone number obtained."
+        },
+        {
+          "role": "EMS",
+          "description": "Checked the Civic driver on scene."
+        }
+      ],
+      "vehicles": [
+        {
+          "description": "Silver Honda Civic. Heavy damage to front left. Tow requested."
+        },
+        {
+          "description": "Blue Ford F-150. Damage to front right."
+        }
+      ],
+      "evidence": [
+        "Witness 1 (Sample Witness) statement, given in Spanish and translated to English",
+        "Witness phone number (obtained; not recorded in notes)",
+        "Driver statements from the Civic and F-150 drivers",
+        "Spanish-language exchange regarding injury, translated",
+        "Observed vehicle damage: Civic front left (heavy), F-150 front right",
+        "Scene conditions: light rain, wet road"
+      ],
+      "followUps": [
+        "Contact Witness 1 to confirm the statement and record contact details",
+        "Obtain names, contact, license, registration, and insurance information for both drivers",
+        "Check for traffic signal timing/phase information and any available camera footage for the intersection",
+        "Follow up on the Civic driver's neck pain complaint",
+        "Confirm the Civic tow and its destination"
+      ],
+      "missing": [
+        "What was the exact arrival time? The notes say about 4:10 PM, but the app timestamps show about 12:20 PM.",
+        "What is the time of the crash?",
+        "What are the names of both drivers?",
+        "What are the plate numbers of both vehicles?",
+        "Which direction was each vehicle traveling, and from which approach?",
+        "Who made the Spanish-language statement about neck pain (the Civic driver or someone else)?",
+        "What are the witness's phone number and exact location when the crash occurred?",
+        "Did the witness see the crash directly?",
+        "Did the F-150 driver or any passenger report or show injuries beyond 'no injuries reported'?",
+        "Were there any passengers in either vehicle?",
+        "Were any citations issued?",
+        "Were photos taken of the scene and damage?",
+        "Which EMS unit responded, and did the Civic driver sign a refusal?",
+        "Which tow company responded and where was the Civic taken?",
+        "Are there signal or traffic-control details (arrow phase present, signal operating normally)?"
+      ],
+      "sections": []
+    }
+  },
+  "lastTranslation": {
+    "at": "2026-10-31T17:20:40.712Z",
+    "fromLang": "Spanish",
+    "toLang": "English",
+    "heard": "No, estoy bien, pero me duele un poco el cuello.",
+    "text": "No, I'm fine, but my neck hurts a little.",
+    "speaker": "other"
+  },
+  "checklist": {
+    "name": "Traffic crash",
+    "step": 9,
+    "done": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ]
+  },
+  "conditions": {
+    "at": "2026-10-31T17:20:52.925Z",
+    "lat": 35.8226,
+    "lon": -90.6735,
+    "address": "Caraway Rd & Highland Dr, Jonesboro, Arkansas",
+    "weather": "overcast",
+    "tempF": 75,
+    "windMph": 5,
+    "daylight": true
+  },
+  "ids": [],
+  "diagram": {
+    "at": "2026-11-02T02:43:52.262Z",
+    "template": "cross",
+    "elements": [
+      {
+        "id": "v1",
+        "kind": "car",
+        "x": 120.47732696897373,
+        "y": 165,
+        "rot": 0,
+        "text": "V1 Civic",
+        "color": "#3fd8ff"
+      },
+      {
+        "id": "v2",
+        "kind": "truck",
+        "x": 185,
+        "y": 70,
+        "rot": 90,
+        "text": "V2 F-150",
+        "color": "#ffb547"
+      },
+      {
+        "id": "im",
+        "kind": "impact",
+        "x": 190,
+        "y": 158,
+        "rot": 0,
+        "text": "Impact",
+        "color": "#ff5a6e"
+      },
+      {
+        "id": "w1",
+        "kind": "person",
+        "x": 300,
+        "y": 215,
+        "rot": 0,
+        "text": "Witness",
+        "color": "#ffd34d"
+      },
+      {
+        "id": "lb",
+        "kind": "label",
+        "x": 330,
+        "y": 245,
+        "rot": 0,
+        "text": "Gas station",
+        "color": "#3fd8ff"
+      }
+    ],
+    "image": {
+      "id": "mvynnbye31lf",
+      "sha256": "d6840f7e57d3609cf0b7e5e019fa9980acc7f709b9f1bf54c8fe6c2dccd5e4b8"
+    }
+  }
+}

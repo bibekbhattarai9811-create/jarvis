@@ -1,0 +1,125 @@
+{
+  "id": "mvr3x7issn6j",
+  "createdAt": "2026-10-27T19:57:17.521Z",
+  "updatedAt": "2026-10-27T20:07:41.219Z",
+  "kind": "move-out",
+  "property": "123 Test St, Jonesboro, AR",
+  "unit": "2B",
+  "inspector": "Jarvis test",
+  "tenant": "Test Tenant",
+  "date": "2026-10-27",
+  "baseId": "mvr3x5rignbe",
+  "notes": "",
+  "rooms": [
+    {
+      "name": "Entry",
+      "notes": "",
+      "photos": []
+    },
+    {
+      "name": "Living room",
+      "notes": "",
+      "photos": []
+    },
+    {
+      "name": "Kitchen",
+      "notes": "",
+      "photos": []
+    },
+    {
+      "name": "Bathroom",
+      "notes": "",
+      "photos": []
+    },
+    {
+      "name": "Bedroom 1",
+      "notes": "",
+      "photos": [
+        {
+          "id": "mvr3x7lef00v",
+          "at": "2026-10-27T19:57:17.618Z",
+          "status": "done",
+          "result": {
+            "object": "bedroom with bed and bookshelf",
+            "category": "structure",
+            "condition": "fair",
+            "score": 6,
+            "summary": "There is a hole about 10–15 cm wide in the wall above the left side of the headboard, with cracks spreading out from it, and a brown stain on the wood floor by the foot of the bed. The rest of the room looks clean and in good order, but the photo is a stitched panorama with a visible seam, so check both defects in person.",
+            "issues": [
+              {
+                "label": "Wall hole with radiating cracks",
+                "severity": "high",
+                "detail": "Dark hole roughly 10–15 cm across, with 3 hairline cracks spreading out from it. It is in the wall about 50 cm above the left side of the headboard. The drywall has been punctured right through, so it needs patching, and the cracks may get longer if left alone.",
+                "x": 0.16,
+                "y": 0.32,
+                "type": "damage"
+              },
+              {
+                "label": "Floor stain near bed foot",
+                "severity": "medium",
+                "detail": "Brown oval stain, roughly 30–40 cm across, on the wood parquet floor at the right foot of the bed. It may be a spill or water mark. If it does not come out with cleaning, it may mean the finish is damaged.",
+                "x": 0.71,
+                "y": 0.92,
+                "type": "cleaning"
+              },
+              {
+                "label": "Loose lamp cord along dresser",
+                "severity": "low",
+                "detail": "The floor lamp's power cord hangs loose down the front of the dresser on the far right of the room. It is a minor trip and snag hazard where people walk.",
+                "x": 0.94,
+                "y": 0.7,
+                "type": "safety"
+              },
+              {
+                "label": "Cords under nightstand",
+                "severity": "low",
+                "detail": "Speaker or lamp cords run loose on the floor under the left nightstand, near a wall outlet. This is minor clutter and a small trip risk.",
+                "x": 0.05,
+                "y": 0.85,
+                "type": "safety"
+              },
+              {
+                "label": "Floor wear by doorway",
+                "severity": "low",
+                "detail": "The parquet looks slightly darker and worn in the walkway toward the hallway door. This looks like normal wear from foot traffic. A runner rug partly covers the area.",
+                "x": 0.88,
+                "y": 0.8,
+                "type": "wear"
+              }
+            ],
+            "actions": [
+              "Cut out and patch the wall hole above the headboard, tape and fill the cracks, then prime and repaint the whole wall section so the color matches.",
+              "Test-clean the floor stain at the foot of the bed with a wood-safe cleaner. If it stays, have the spot sanded and refinished.",
+              "Route or clip the floor lamp cord against the dresser and tidy the cords under the left nightstand.",
+              "Take new single-frame photos, not a panorama, of the wall hole and floor stain with a scale reference, and check the ceiling for a smoke detector because the ceiling is not in this photo."
+            ],
+            "safety": "Before patching the wall hole, check behind it for wiring or pipes. Smoke detector presence could not be checked because the ceiling is not in view."
+          }
+        }
+      ],
+      "compare": {
+        "status": "done",
+        "at": "2026-10-27T19:57:55.467Z",
+        "result": {
+          "summary": "At move-out there is a new hole in the wall above the left side of the headboard, with cracks spreading out from it, and a new brown stain on the wood floor near the foot of the bed. Nothing else looks different from move-in.",
+          "changes": [
+            {
+              "label": "Hole in wall",
+              "severity": "high",
+              "type": "damage",
+              "detail": "There is a new dark hole, about fist-sized, in the wall above the left side of the bed headboard. Cracks run out from it. This was not there at move-in.",
+              "beyondWear": true
+            },
+            {
+              "label": "Floor stain",
+              "severity": "medium",
+              "type": "damage",
+              "detail": "There is a new brown, oval-shaped stain on the wood floor near the foot of the bed, on the right side. The floor was clean there at move-in.",
+              "beyondWear": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -5,6 +5,8 @@ export default {
   // Hide the dev "issues" badge: MediaPipe logs harmless INFO lines through console.error.
   devIndicators: false,
   poweredByHeader: false,
+  // The live demo reads its sample data from ./demo at run time (JARVIS_DATA=demo); ship it with the API routes.
+  outputFileTracingIncludes: { "/api/**/*": ["./demo/**/*"] },
   async headers() {
     return [
       {

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import InstallApp from "./InstallApp";
+import DemoBanner from "./DemoBanner";
 
 export const metadata: Metadata = {
   title: "JARVIS",
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <InstallApp />
         {children}
+        <DemoBanner />
       </body>
     </html>
   );

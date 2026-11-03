@@ -7,3 +7,7 @@ certificates/
 public/jarvis-ca.crt
 tsconfig.tsbuildinfo
 *.log
+.vercel
+.env*
+!.env.example
+.next-demo

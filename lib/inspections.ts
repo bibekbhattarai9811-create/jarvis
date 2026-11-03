@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import type { Inspection } from "./brain";
+import { dataDir } from "./paths";
 
-const DIR = path.join(process.cwd(), "data", "inspections");
+const DIR = path.join(dataDir(), "inspections");
 const INDEX = path.join(DIR, "index.json");
 
 export type Saved = Inspection & { id: string; at: string; note: string };

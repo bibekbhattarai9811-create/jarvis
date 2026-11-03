@@ -10,8 +10,9 @@ import fs from "fs";
 import path from "path";
 import { askText, parseJsonReply, readId, type IdFields } from "./brain";
 import { FIELD_CHECKLISTS } from "./fieldChecklists";
+import { dataDir } from "./paths";
 
-const ROOT = path.join(process.cwd(), "data", "field");
+const ROOT = path.join(dataDir(), "field");
 const SETTINGS = path.join(ROOT, "_settings.json");
 
 export type ReportDraft = {

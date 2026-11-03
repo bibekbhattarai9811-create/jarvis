@@ -1,6 +1,7 @@
 import fs from "fs";
 import { authed, denied, jpegFromDataUrl, json } from "@/lib/auth";
 import { locateSensitive } from "@/lib/brain";
+import { isDemo } from "@/lib/paths";
 import { addPhoto, deletePhoto, getIncident, photoFile } from "@/lib/field";
 
 export const runtime = "nodejs";
@@ -28,7 +29,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
 /** ?p=<photoId>&find=1 → where the faces and plates are (for the privacy blur). */
 export async function GET(req: Request, { params }: Ctx) {
-  if (!authed(req)) return denied(req);
+  if (!authed(req) || isDemo()) return denied(req); // asks Claude: not in the live demo
   const f = photoFile((await params).id, new URL(req.url).searchParams.get("p") || "");
   if (!f || !fs.existsSync(f)) return json(req, { error: "Photo not found." }, 404);
   try {

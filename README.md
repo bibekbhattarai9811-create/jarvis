@@ -1,5 +1,8 @@
 # J.A.R.V.I.S.
 
+[![CI](https://github.com/bibekbhattarai9811-create/jarvis/actions/workflows/ci.yml/badge.svg)](https://github.com/bibekbhattarai9811-create/jarvis/actions/workflows/ci.yml)
+**[▶ Try the live demo](https://jarvis-demo-sandy.vercel.app)** (read-only sample data, sample answers; HOLO and face recognition run fully in your browser)
+
 **An Iron Man–style assistant for your PC, phone and smart glasses, built on Claude.**
 Talk to it, play with holograms using your hands, inspect rental properties room by room, and run a hands-free
 field-report demo for public-safety use, all from one self-hosted Next.js app.
@@ -110,6 +113,21 @@ npm start                      # https://localhost:3900
 - Run `scripts\trust-certificate.bat` once to remove the browser warning (Windows asks you to confirm); phones can install `/jarvis-ca.crt`.
 - `scripts/jarvis-hidden.vbs` runs it in the background; copy it to the Startup folder to start at sign-in.
 
+## Tests
+
+`npm test` runs 25 tests (Vitest), and GitHub Actions runs them plus a type-check and a full build on every push:
+
+- **Instant commands**: everyday phrases are handled without AI; look-alike phrases go to Claude.
+- **Login**: owner vs guest, lockout after 5 wrong guesses per address, signed cookies, real-JPEG uploads only.
+- **Public redaction**: names, dates of birth (any format), ID numbers, streets and phone numbers never reach the public PDF.
+- **Evidence**: fingerprints catch a single changed byte; approved evidence can't be deleted; old incidents upgrade cleanly.
+- **HOLO physics**: lock-on, two-hand resize, blasts, merge-and-split, charge-up throws.
+
+## Live demo
+
+The demo is this same app built with `NEXT_PUBLIC_DEMO=1` and `JARVIS_DATA=demo` (see `demo/`): read-only sample data,
+sample answers instead of Claude, no PC control. Deploy your own with `vercel deploy -b NEXT_PUBLIC_DEMO=1 -e NEXT_PUBLIC_DEMO=1 -e JARVIS_DATA=demo`.
+
 ## Tech
 
 Next.js 15 · React 19 · TypeScript · Claude (Claude Code CLI / Anthropic API) · MediaPipe Tasks Vision · face-api ·
@@ -119,3 +137,8 @@ Web Speech API · Canvas 2D · IndexedDB + service worker · node-forge (local C
 
 Demo quality: voice features depend on the browser's speech engine; AI output must be reviewed by a person;
 nothing here is certified for law-enforcement, legal, or inspection use.
+
+## Credits
+
+Inspect Pro example photo: [“BR”](https://commons.wikimedia.org/wiki/File:BR_(4151040962).jpg) by Francisco Anzola,
+[CC BY 2.0](https://creativecommons.org/licenses/by/2.0/); the move-out copy was edited to add damage.
