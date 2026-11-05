@@ -6,6 +6,7 @@ import { DroneGame } from "@/lib/droneGame";
 import { HoloPlayground, holoQueue, type HandInput } from "@/lib/holoPlayground";
 import { scanAt, thumbnail } from "@/lib/scanner";
 import { detectFaces, loadFaces, saveFace, type SeenFace } from "@/lib/faceClient";
+import { DEFAULT_PINCH, loadPinch, pinchFromSamples, pinchProgress, savePinch, type PinchCfg } from "@/lib/pinch";
 
 export type Gesture = "Open_Palm" | "Closed_Fist" | "Thumb_Up" | "Thumb_Down" | "Victory" | "Pointing_Up" | "ILoveYou";
 
@@ -111,6 +112,20 @@ export default function Gestures({
   const onFaceRef = useRef(onFace);
   onFaceRef.current = onFace;
   const learnRef = useRef<string | null>(null); // name to learn from the next face samples
+  // Pinch cut-offs, personalised by "Train my hand" (saved on this device).
+  const pinchCfg = useRef<PinchCfg>(DEFAULT_PINCH);
+  const [trained, setTrained] = useState(false);
+  useEffect(() => {
+    pinchCfg.current = loadPinch();
+    setTrained(pinchCfg.current.trained);
+  }, []);
+  type Training = { step: "open" | "pinch"; open: number[]; pinch: number[]; startAt: number; until: number; tick: number };
+  const trainRef = useRef<Training | null>(null);
+  const [train, setTrain] = useState<{ step: "open" | "pinch" | "done" | "fail"; progress: number } | null>(null);
+  const startTrain = () => {
+    trainRef.current = { step: "open", open: [], pinch: [], startAt: performance.now() + 900, until: 0, tick: -1 };
+    setTrain({ step: "open", progress: 0 });
+  };
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -167,7 +182,7 @@ export default function Gestures({
         const drone = new DroneGame();
         const play = new HoloPlayground();
         playRef.current = play;
-        type Track = { target: Pt[]; hand: Pt[] | null; gesture: string; seenAt: number; prevPalm: Pt | null; vel: Pt; pinching: boolean; openSince: number };
+        type Track = { target: Pt[]; hand: Pt[] | null; gesture: string; seenAt: number; prevPalm: Pt | null; vel: Pt; pinching: boolean; openSince: number; world: { x: number; y: number; z: number }[] | null; gap?: number };
         const tracks = new Map<string, Track>();
         let nextTrack = 1;
         let prevFrame = performance.now();
@@ -235,8 +250,10 @@ export default function Gestures({
               if (!key) key = `hand${nextTrack++}`;
               used.add(key);
               const g = res.gestures[i]?.[0];
-              const tr = tracks.get(key) || { target: [], hand: null, gesture: "", seenAt: 0, prevPalm: null, vel: { x: 0, y: 0 }, pinching: false, openSince: 0 };
+              const tr = tracks.get(key) || { target: [], hand: null, gesture: "", seenAt: 0, prevPalm: null, vel: { x: 0, y: 0 }, pinching: false, openSince: 0, world: null };
               tr.target = screen;
+              // Real-world hand points (meters, centred on the hand): the pinch measure doesn't depend on how far the hand is from the camera.
+              tr.world = (res as unknown as { worldLandmarks?: { x: number; y: number; z: number }[][] }).worldLandmarks?.[i] || null;
               tr.gesture = g && g.score >= MIN_SCORE && g.categoryName !== "None" ? g.categoryName : "";
               tr.seenAt = now;
               tracks.set(key, tr);
@@ -277,18 +294,31 @@ export default function Gestures({
             const inputs: HandInput[] = [];
             for (const [id, tr] of tracks) {
               const tg = tr.target;
-              const hd = (tr.hand = tr.hand ? tr.hand.map((p, i) => ({ x: p.x + (tg[i].x - p.x) * 0.55, y: p.y + (tg[i].y - p.y) * 0.55 })) : tg);
+              // Adaptive smoothing: steady when the hand is still (no jitter), quick when it moves (no lag).
+              const moved = tr.hand ? dist(tr.hand[9], tg[9]) : 0;
+              const k = Math.min(0.9, 0.25 + moved / 40);
+              const hd = (tr.hand = tr.hand ? tr.hand.map((p, i) => ({ x: p.x + (tg[i].x - p.x) * k, y: p.y + (tg[i].y - p.y) * k })) : tg);
               const size = dist(hd[0], hd[9]) || 1;
               const palm = [0, 5, 9, 13, 17].reduce((a, i) => ({ x: a.x + hd[i].x / 5, y: a.y + hd[i].y / 5 }), { x: 0, y: 0 });
               if (tr.prevPalm && dt > 0) tr.vel = { x: tr.vel.x * 0.6 + ((palm.x - tr.prevPalm.x) / dt) * 0.4, y: tr.vel.y * 0.6 + ((palm.y - tr.prevPalm.y) / dt) * 0.4 };
               tr.prevPalm = palm;
-              // Pinch with hysteresis: close below 0.33 to start, it holds until you clearly open (> 0.5)
-              // for 120ms, so a sloppy pinch doesn't drop what you're holding.
-              const gap = dist(hd[4], hd[8]) / size;
-              if (gap < 0.38) {
+              // Pinch = thumb-tip to index-tip distance ÷ palm length, in the tracker's real-world hand coordinates
+              // (x, y only: its depth guess at the fingertips is unreliable and reads a closed pinch as open).
+              // Tested on photos: open hands 0.68–1.12, pinches 0.14–0.15. Fallback: image coordinates with a palm
+              // size that doesn't shrink when the hand turns sideways.
+              // Hysteresis: close below `on` to grab; it holds until you clearly open (> `off`) for 120 ms, so a
+              // sloppy pinch doesn't drop what you're holding. `on`/`off` come from "Train my hand" (defaults otherwise).
+              const w = tr.world;
+              const gap =
+                w && w.length > 9
+                  ? dist(w[4], w[8]) / (dist(w[0], w[9]) || 1)
+                  : dist(hd[4], hd[8]) / Math.max(size, dist(hd[5], hd[17]) * 1.6);
+              tr.gap = gap;
+              const { on: pinchOn, off: pinchOff } = pinchCfg.current;
+              if (gap < pinchOn) {
                 tr.pinching = true;
                 tr.openSince = 0;
-              } else if (tr.pinching && gap > 0.55) {
+              } else if (tr.pinching && gap > pinchOff) {
                 tr.openSince ||= now;
                 if (now - tr.openSince > 120) tr.pinching = false;
               } else tr.openSince = 0;
@@ -412,12 +442,50 @@ export default function Gestures({
                   .finally(() => (scanBusy = false));
               }
             } else scanAnchor = null;
-            // While scanning, a pinch is the shutter, not a grab.
-            const playInputs = scanRef.current ? inputs.map((h) => ({ ...h, pinch: null })) : inputs;
+            // "Train my hand": sample the pinch gap with your hand open, then pinched (2.5 s each).
+            const T = trainRef.current;
+            if (T) {
+              const first = [...tracks.values()].find((t) => typeof t.gap === "number" && now - t.seenAt < 150);
+              const samples = T.step === "open" ? T.open : T.pinch;
+              if (!first) {
+                // Hand left the picture: start this step over once it's back.
+                samples.length = 0;
+                T.until = 0;
+              } else if (now >= T.startAt) {
+                T.until ||= now + 2500;
+                samples.push(first.gap!);
+                const progress = Math.min(1, 1 - (T.until - now) / 2500);
+                if (now >= T.until) {
+                  if (T.step === "open") {
+                    Object.assign(T, { step: "pinch", startAt: now + 1200, until: 0, tick: -1 });
+                    setTrain({ step: "pinch", progress: 0 });
+                  } else {
+                    const cfg = pinchFromSamples(T.open, T.pinch);
+                    trainRef.current = null;
+                    if (cfg) {
+                      pinchCfg.current = cfg;
+                      savePinch(cfg);
+                      setTrained(true);
+                      setTrain({ step: "done", progress: 1 });
+                    } else setTrain({ step: "fail", progress: 0 });
+                  }
+                } else if (Math.floor(progress * 20) !== T.tick) {
+                  T.tick = Math.floor(progress * 20);
+                  setTrain({ step: T.step, progress });
+                }
+              }
+            }
+            // While scanning or training, a pinch is not a grab.
+            const playInputs = scanRef.current || trainRef.current ? inputs.map((h) => ({ ...h, pinch: null })) : inputs;
             play.update(dt, W, H, playInputs, { at: pointer.current.at, down: pointer.current.down && !scanRef.current });
             drawHolo(ctx, { W, H, now, v, s, ox, oy, vw, vh, hands, label, grabbed: play.grabbedName, fps, status: statusRef.current, game: false, mirror });
             play.draw(ctx, now / 1000, statusRef.current);
             drawFaces(ctx, faces, now / 1000);
+            // Pinch meter at each hand's fingertips: fills as you close the pinch, turns green when it grabs.
+            for (const tr of tracks.values()) {
+              if (!tr.hand || typeof tr.gap !== "number" || now - tr.seenAt > 150) continue;
+              drawPinchMeter(ctx, { x: (tr.hand[4].x + tr.hand[8].x) / 2, y: (tr.hand[4].y + tr.hand[8].y) / 2 }, pinchProgress(tr.gap, pinchCfg.current), tr.pinching);
+            }
 
             // Hand-hover menu at bottom center: move index fingertip near bottom to reveal & hover-select options.
             const tip0 = hands[0]?.[8];
@@ -638,6 +706,9 @@ export default function Gestures({
               <button type="button" onClick={() => switchCamera.current(facing === "user" ? "environment" : "user")}>
                 🔄 Cam
               </button>
+              <button type="button" className={train ? "on" : ""} onClick={startTrain} title="Teach Jarvis your open hand and your pinch">
+                ✋ {trained ? "Retrain" : "Train hand"}
+              </button>
               <button type="button" onClick={() => holoQueue.push({ op: "reset" })}>
                 ↺ Reset
               </button>
@@ -677,6 +748,65 @@ export default function Gestures({
           </div>
         </div>
       )}
+      {holo && train && (
+        <div className="holo-guide holo-train" role="dialog" aria-label="Train my hand">
+          <b>TRAIN MY HAND</b>
+          {train.step === "open" && (
+            <p>
+              ✋ <span>Hold your hand up to the camera, <em>open and relaxed</em>, like you&apos;re about to grab something.</span>
+            </p>
+          )}
+          {train.step === "pinch" && (
+            <p>
+              🤏 <span>Now <em>pinch</em>: touch your thumb and index fingertips together and hold.</span>
+            </p>
+          )}
+          {train.step === "done" && (
+            <p>
+              ✓ <span>Trained to your hand. Pinching should feel easy now. Watch the ring at your fingertips: it turns <em>green</em> when you grab.</span>
+            </p>
+          )}
+          {train.step === "fail" && (
+            <p>
+              ⚠ <span>Couldn&apos;t tell your open hand from your pinch. Keep your hand in view, 1–2 feet from the camera, and try again.</span>
+            </p>
+          )}
+          {(train.step === "open" || train.step === "pinch") && (
+            <div className="train-bar">
+              <span style={{ width: `${Math.round(train.progress * 100)}%` }} />
+            </div>
+          )}
+          <div className="train-btns">
+            {train.step === "fail" && (
+              <button type="button" onClick={startTrain}>
+                Try again
+              </button>
+            )}
+            {trained && train.step !== "open" && train.step !== "pinch" && (
+              <button
+                type="button"
+                onClick={() => {
+                  savePinch(null);
+                  pinchCfg.current = { ...DEFAULT_PINCH };
+                  setTrained(false);
+                  setTrain(null);
+                }}
+              >
+                Use default
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                trainRef.current = null;
+                setTrain(null);
+              }}
+            >
+              {train.step === "done" ? "Done" : "Cancel"}
+            </button>
+          </div>
+        </div>
+      )}
       {holo && guide && (
         <div className="holo-guide" onClick={() => setGuide(false)}>
           <b>HOW TO PLAY</b>
@@ -690,6 +820,7 @@ export default function Gestures({
           <p>🗣️ <span>Say <em>“Jarvis, make it red”</em>, “bigger”, “smaller”, “blow it up”, or “explode everything”.</span></p>
           <p>👤 <span>Tap <em>Learn face</em> (or say “Jarvis, remember my face” / “this is Sam”) and look at the camera. Jarvis tags known faces by name.</span></p>
           <p>🖱️ <span>Mouse: drag to grab, <em>scroll wheel</em> over an orb to resize.</span></p>
+          <p>✋ <span>Pinch feels off? Tap <em>Train hand</em>: show an open hand, then a pinch, and Jarvis tunes grabbing to your hand.</span></p>
           <small>Tip: keep your hand 1–2 feet from the camera in good light. Tap to close.</small>
         </div>
       )}
@@ -972,6 +1103,31 @@ function drawScanReticle(ctx: CanvasRenderingContext2D, p: Pt, progress: number,
 }
 
 /** Iron Man style face tracking: corner brackets, a name tag, and a confidence bar. Unknown faces get a red tag. */
+/** Small ring between thumb and index tips: how close you are to the grab point (green = grabbing). */
+function drawPinchMeter(ctx: CanvasRenderingContext2D, at: Pt, progress: number, grabbing: boolean) {
+  const r = 15;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(63,216,255,0.25)";
+  ctx.beginPath();
+  ctx.arc(at.x, at.y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = grabbing ? "rgba(77,255,154,0.95)" : `rgba(63,216,255,${0.4 + progress * 0.6})`;
+  ctx.shadowColor = grabbing ? "#4dff9a" : "#3fd8ff";
+  ctx.shadowBlur = grabbing ? 14 : 6;
+  ctx.beginPath();
+  ctx.arc(at.x, at.y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (grabbing ? 1 : progress));
+  ctx.stroke();
+  if (grabbing) {
+    ctx.fillStyle = "rgba(77,255,154,0.9)";
+    ctx.beginPath();
+    ctx.arc(at.x, at.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawFaces(ctx: CanvasRenderingContext2D, faces: (SeenFace & { sx: number; sy: number; sw: number; sh: number })[], t: number) {
   for (const f of faces) {
     const known = !!f.name;

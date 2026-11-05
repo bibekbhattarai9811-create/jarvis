@@ -2065,3 +2065,37 @@ a.pill {
   background: rgba(63, 216, 255, 0.45);
   border-radius: 99px;
 }
+
+/* HOLO: Train my hand */
+.holo-train {
+  cursor: default;
+}
+.train-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(63, 216, 255, 0.15);
+  overflow: hidden;
+  margin: 4px 0 12px;
+}
+.train-bar span {
+  display: block;
+  height: 100%;
+  background: #3fd8ff;
+  border-radius: 99px;
+  transition: width 0.15s linear;
+}
+.train-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.train-btns button {
+  background: rgba(3, 14, 26, 0.8);
+  border: 1px solid rgba(63, 216, 255, 0.55);
+  color: #e8fbff;
+  border-radius: 99px;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
