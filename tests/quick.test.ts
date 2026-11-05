@@ -8,6 +8,8 @@ describe("instant commands", () => {
   it("handles media keys and the lock screen", () => {
     expect(actions("Turn the volume up")).toEqual([{ type: "media", key: "volume_up" }]);
     expect(actions("volume down please")).toEqual([{ type: "media", key: "volume_down" }]);
+    expect(actions("set volume to 40%")).toEqual([{ type: "set_volume", level: 40 }]);
+    expect(actions("system status")).toEqual([{ type: "pc_status" }]);
     expect(actions("pause")).toEqual([{ type: "media", key: "play_pause" }]);
     expect(actions("next song")).toEqual([{ type: "media", key: "next" }]);
     expect(actions("lock my pc")).toEqual([{ type: "lock_pc" }]);
@@ -16,6 +18,8 @@ describe("instant commands", () => {
   it("sets timers from words or digits", () => {
     expect(actions("set a 5 minute timer for pasta")).toEqual([{ type: "timer", seconds: 300, label: "pasta" }]);
     expect(actions("timer for thirty seconds")).toEqual([{ type: "timer", seconds: 30, label: undefined }]);
+    expect(actions("cancel the timer")).toEqual([{ type: "timer_cancel", label: undefined }]);
+    expect(actions("stop the pasta timer")).toEqual([{ type: "timer_cancel", label: "pasta" }]);
   });
 
   it("opens sites on the PC from the computer, and on the device from a phone", () => {

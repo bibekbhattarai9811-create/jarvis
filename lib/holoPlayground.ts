@@ -316,6 +316,7 @@ export class HoloPlayground {
   private audio: AudioContext | null = null;
   private nextId = 1;
   private scans: ScanFx[] = [];
+  private vortex: Pt | null = null;
   private clock = 0;
   private W = 0;
   private H = 0;
@@ -564,7 +565,9 @@ export class HoloPlayground {
     }
 
     const held = new Set(byObj.keys());
-    const fistHand = hands.find((h) => h.fist);
+    const fists = hands.filter((h) => h.fist);
+    const fistHand = fists[0];
+    this.vortex = fists.length >= 2 ? { x: (fists[0].palm.x + fists[1].palm.x) / 2, y: (fists[0].palm.y + fists[1].palm.y) / 2 } : null;
     for (const o of this.objs) {
       if (o.broken > 0) {
         o.broken -= dt;
@@ -589,8 +592,20 @@ export class HoloPlayground {
         o.vx *= k;
         o.vy *= k;
       }
-      // Fist pulls everything in.
-      if (fistHand) {
+      // Two fists (✊✊) create a gravity singularity that orbits and slingshots holograms; one fist (✊) pulls them in.
+      if (this.vortex) {
+        const dx = this.vortex.x - o.x;
+        const dy = this.vortex.y - o.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const nx = dx / d;
+        const ny = dy / d;
+        // Pull inward + strong tangential swirl so they orbit the singularity
+        const pull = d > 110 ? 2400 : -600;
+        const swirl = 2100;
+        o.vx += (nx * pull - ny * swirl) * dt;
+        o.vy += (ny * pull + nx * swirl) * dt;
+        o.spin = [o.spin[0] + 4 * dt, o.spin[1] + 6 * dt, o.spin[2] + 3 * dt];
+      } else if (fistHand) {
         const dx = fistHand.palm.x - o.x;
         const dy = fistHand.palm.y - o.y;
         const d = Math.hypot(dx, dy) || 1;
@@ -1174,6 +1189,34 @@ export class HoloPlayground {
       ctx.stroke();
       ctx.restore();
       void ids;
+    }
+
+    // Two-fist Gravity Vortex singularity
+    if (this.vortex) {
+      const { x, y } = this.vortex;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.shadowColor = "rgba(170,110,255,1)";
+      ctx.shadowBlur = 28;
+      for (let i = 0; i < 3; i++) {
+        ctx.strokeStyle = i === 0 ? "rgba(63,216,255,0.9)" : "rgba(180,120,255,0.75)";
+        ctx.lineWidth = 2.5 - i * 0.5;
+        ctx.setLineDash([12, 8]);
+        ctx.lineDashOffset = (i % 2 ? 1 : -1) * t * 90;
+        ctx.beginPath();
+        ctx.arc(0, 0, 28 + i * 22, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.beginPath();
+      ctx.arc(0, 0, 7 + Math.sin(t * 20) * 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = "bold 11px Consolas, 'Courier New', monospace";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#e0c8ff";
+      ctx.fillText("GRAVITY SINGULARITY · RELEASE TO SLINGSHOT", 0, -86);
+      ctx.restore();
     }
 
     // Smash effects

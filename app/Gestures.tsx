@@ -54,12 +54,14 @@ const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 export default function Gestures({
   onError,
   onFace,
+  onExit,
   holo,
   game,
   status,
 }: {
   onError: (msg: string) => void;
   onFace?: (name: string) => void;
+  onExit?: () => void;
   holo: boolean;
   game: boolean;
   status: Status;
@@ -67,7 +69,7 @@ export default function Gestures({
   const gameRef = useRef(game);
   gameRef.current = game;
   // Mouse / touch fallback for aiming in the game.
-  const pointer = useRef<{ at: Pt | null; movedAt: number; clicked: boolean; down: boolean }>({ at: null, movedAt: 0, clicked: false, down: false });
+  const pointer = useRef<{ at: Pt | null; movedAt: number; clicked: boolean; down: boolean; special: boolean }>({ at: null, movedAt: 0, clicked: false, down: false, special: false });
   const video = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [seen, setSeen] = useState("Loading hand tracking…");
@@ -82,6 +84,13 @@ export default function Gestures({
   // Scan mode: point at a real object (or tap it) to turn it into a hologram.
   const [scanArmed, setScanArmed] = useState(false);
   const [guide, setGuide] = useState(false);
+  const [dock, setDock] = useState(false);
+  const [handMenu, setHandMenu] = useState(false);
+  const dockRef = useRef(false);
+  dockRef.current = dock;
+  const handMenuRef = useRef(false);
+  const onExitRef = useRef(onExit);
+  onExitRef.current = onExit;
   const playRef = useRef<HoloPlayground | null>(null);
   // Show the gesture guide the first time HOLO opens.
   useEffect(() => {
@@ -168,6 +177,9 @@ export default function Gestures({
         let scanSince = 0;
         let scanBusy = false;
         let toast = { text: "", until: 0 };
+        let hoverBtn: HTMLButtonElement | null = null;
+        let hoverSince = 0;
+        let hoverFired = false;
         // Face recognition (HOLO only): runs a few times a second beside hand tracking.
         type ShownFace = SeenFace & { sx: number; sy: number; sw: number; sh: number };
         let faces: ShownFace[] = [];
@@ -406,6 +418,46 @@ export default function Gestures({
             drawHolo(ctx, { W, H, now, v, s, ox, oy, vw, vh, hands, label, grabbed: play.grabbedName, fps, status: statusRef.current, game: false, mirror });
             play.draw(ctx, now / 1000, statusRef.current);
             drawFaces(ctx, faces, now / 1000);
+
+            // Hand-hover menu at bottom center: move index fingertip near bottom to reveal & hover-select options.
+            const tip0 = hands[0]?.[8];
+            const zoneH = dockRef.current ? 210 : handMenuRef.current ? 96 : 64;
+            const nearBottom = !!tip0 && !play.grabbedName && tip0.y > H - zoneH && Math.abs(tip0.x - W / 2) < 360;
+            if (nearBottom !== handMenuRef.current) {
+              handMenuRef.current = nearBottom;
+              setHandMenu(nearBottom);
+              if (!nearBottom) setDock(false);
+            }
+            let btnProgress = 0;
+            if (tip0 && nearBottom) {
+              const el = document.elementFromPoint(tip0.x, tip0.y)?.closest(".holo-hover-zone button") as HTMLButtonElement | null;
+              if (el !== hoverBtn) {
+                hoverBtn?.removeAttribute("data-hand-hover");
+                hoverBtn = el;
+                hoverBtn?.setAttribute("data-hand-hover", "1");
+                hoverSince = now;
+                hoverFired = false;
+              } else if (el && !hoverFired) {
+                btnProgress = Math.min(1, (now - hoverSince) / 550);
+                if (btnProgress >= 1 || inputs[0]?.pinch) {
+                  hoverFired = true;
+                  el.click();
+                }
+              }
+              if (tip0 && el) {
+                ctx.save();
+                ctx.strokeStyle = "#3fd8ff";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(tip0.x, tip0.y, 18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * btnProgress);
+                ctx.stroke();
+                ctx.restore();
+              }
+            } else if (hoverBtn) {
+              hoverBtn.removeAttribute("data-hand-hover");
+              hoverBtn = null;
+            }
+
             if (learning) drawToast(ctx, W, H, faces.length ? `LEARNING FACE · HOLD STILL · ${learning.samples.length}/8` : "LOOK AT THE CAMERA TO LEARN YOUR FACE");
             else if (faceState === "loading" && learnRef.current) drawToast(ctx, W, H, "LOADING FACE RECOGNITION…");
             if (scanAim) drawScanReticle(ctx, scanAim, holdProgress, now / 1000, W, H);
@@ -436,7 +488,10 @@ export default function Gestures({
             shoot = true;
             p.clicked = false;
           }
-          drone.update(dt, now, W, H, aim, shoot, origin);
+          const openPalm = [...tracks.values()].some((tr) => tr.gesture === "Open_Palm");
+          const special = openPalm || p.special;
+          p.special = false;
+          drone.update(dt, now, W, H, aim, shoot, origin, special);
           const sh = drone.shake();
           ctx.save();
           ctx.translate(sh.x, sh.y);
@@ -451,8 +506,18 @@ export default function Gestures({
       }
     })();
 
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "Escape") {
+        onExitRef.current?.();
+      } else if (gameRef.current && e.code === "Space") {
+        e.preventDefault();
+        pointer.current.special = true;
+      }
+    };
+    window.addEventListener("keydown", onKey);
     return () => {
       stopped = true;
+      window.removeEventListener("keydown", onKey);
       cancelAnimationFrame(raf);
       stream?.getTracks().forEach((t) => t.stop());
       recognizer?.close();
@@ -482,25 +547,134 @@ export default function Gestures({
         onPointerCancel={() => (pointer.current.down = false)}
       />
       {holo && (
-        <div className="holo-btns">
-          <button className={scanArmed ? "on" : ""} onClick={() => armScan(!scanArmed)}>
-            {scanArmed ? "✕ Cancel scan" : "⊕ Scan object"}
-          </button>
-          <button onClick={() => switchCamera.current(facing === "user" ? "environment" : "user")}>
-            🔄 {facing === "user" ? "Back camera" : "Front camera"}
-          </button>
-          <button onClick={() => holoQueue.push({ op: "reset" })}>↺ Reset orbs</button>
-          <button
-            onClick={() => {
-              const name = window.prompt("Whose face is this? (Look at the camera after you press OK.)", "Bibek");
-              if (name?.trim()) learnRef.current = name.trim();
-            }}
-          >
-            👤 Learn face
-          </button>
-          <button className={guide ? "on" : ""} onClick={() => setGuide((g) => !g)}>
-            ? How to play
-          </button>
+        <div
+          className={`holo-hover-zone ${handMenu || dock || scanArmed ? "open" : ""}`}
+          onMouseLeave={() => setDock(false)}
+        >
+          <span className="holo-trigger" aria-hidden="true">
+            ✦ Options
+          </span>
+          {dock && (
+            <div className="holo-dock">
+              <div className="holo-dock-row">
+                {[
+                  { id: "helmet", label: "🦾 Helmet" },
+                  { id: "reactor", label: "⚛ Reactor" },
+                  { id: "cube", label: "🧊 Cube" },
+                  { id: "globe", label: "🌍 Earth" },
+                  { id: "gyro", label: "🧭 Gyro" },
+                  { id: "crystal", label: "💎 Crystal" },
+                  { id: "pyramid", label: "🔺 Pyramid" },
+                  { id: "torus", label: "🍩 Torus" },
+                  { id: "dna", label: "🧬 DNA" },
+                  { id: "atom", label: "🔬 Atom" },
+                  { id: "star", label: "⭐ Star" },
+                  { id: "heart", label: "❤️ Heart" },
+                ].map((s) => (
+                  <button key={s.id} type="button" onClick={() => holoQueue.push({ op: "add", shape: s.id })}>
+                    + {s.label}
+                  </button>
+                ))}
+              </div>
+              <div className="holo-dock-row">
+                {[
+                  { name: "cyan", hex: "#3fd8ff" },
+                  { name: "gold", hex: "#ffc83c" },
+                  { name: "red", hex: "#ff4646" },
+                  { name: "green", hex: "#50ff8c" },
+                  { name: "blue", hex: "#468cff" },
+                  { name: "purple", hex: "#aa6eff" },
+                  { name: "pink", hex: "#ff64be" },
+                  { name: "white", hex: "#ebf5ff" },
+                ].map((c) => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    className="swatch"
+                    style={{ background: c.hex }}
+                    onClick={() => holoQueue.push({ op: "color", color: c.name })}
+                    title={`Color active hologram ${c.name}`}
+                  />
+                ))}
+                <button type="button" onClick={() => holoQueue.push({ op: "scale", factor: 1.35 })} title="Scale up">
+                  ➕ Bigger
+                </button>
+                <button type="button" onClick={() => holoQueue.push({ op: "scale", factor: 0.74 })} title="Scale down">
+                  ➖ Smaller
+                </button>
+                <button type="button" onClick={() => holoQueue.push({ op: "explode", all: true })} title="Detonate all holograms">
+                  💥 Boom All
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="holo-toolbar">
+            <div className="holo-toolbar-row">
+              {onExit && (
+                <button type="button" className="exit-btn" onClick={onExit}>
+                  ← Exit
+                </button>
+              )}
+              <button
+                type="button"
+                className={dock ? "on" : ""}
+                onMouseEnter={() => setDock(true)}
+                onClick={() => setDock((d) => !d)}
+              >
+                ✨ Shapes
+              </button>
+              <button type="button" className={scanArmed ? "on" : ""} onClick={() => armScan(!scanArmed)}>
+                {scanArmed ? "✕ Cancel" : "📸 Scan"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const name = window.prompt("Whose face is this? (Look at the camera after you press OK.)", "Bibek");
+                  if (name?.trim()) learnRef.current = name.trim();
+                }}
+              >
+                👤 Face
+              </button>
+              <button type="button" onClick={() => switchCamera.current(facing === "user" ? "environment" : "user")}>
+                🔄 Cam
+              </button>
+              <button type="button" onClick={() => holoQueue.push({ op: "reset" })}>
+                ↺ Reset
+              </button>
+              <button type="button" className={guide ? "on" : ""} onClick={() => setGuide((g) => !g)}>
+                ?
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {game && (
+        <div className="holo-hover-zone">
+          <span className="holo-trigger" aria-hidden="true">
+            🎮 Options
+          </span>
+          <div className="holo-toolbar game-toolbar">
+            <div className="holo-toolbar-row">
+              {onExit && (
+                <button type="button" className="exit-btn" onClick={onExit}>
+                  ← Exit
+                </button>
+              )}
+              <button
+                type="button"
+                className="on"
+                onClick={() => {
+                  pointer.current.special = true;
+                }}
+                title="Fire Chest Unibeam (or press Spacebar / show Open Palm)"
+              >
+                ⚡ Unibeam
+              </button>
+              <button type="button" onClick={() => switchCamera.current(facing === "user" ? "environment" : "user")}>
+                🔄 Cam
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {holo && guide && (
@@ -511,7 +685,8 @@ export default function Gestures({
           <p>💥 <span>Grab two orbs (one per hand) and <em>crash them together</em>. They blast, then come back at normal size.</span></p>
           <p>🫧 <span>Push two held orbs together <em>slowly</em> to <em>merge</em> them into one big orb. Blow it up and they split apart again.</span></p>
           <p>⚡ <span>Hold an orb <em>still</em> until its gold ring fills, then <em>throw</em> it: it explodes on whatever it hits.</span></p>
-          <p>👋 <span>Flick and let go to <em>throw</em>. Open palm <em>swats</em>. Fist <em>pulls</em> everything to you.</span></p>
+          <p>✊✊ <span>Make <em>two fists</em> to summon a <em>Gravity Singularity</em> that swirls all holograms into orbit, then open to slingshot!</span></p>
+          <p>👋 <span>Flick and let go to <em>throw</em>. Open palm <em>swats</em>. Single fist <em>pulls</em> everything to you.</span></p>
           <p>🗣️ <span>Say <em>“Jarvis, make it red”</em>, “bigger”, “smaller”, “blow it up”, or “explode everything”.</span></p>
           <p>👤 <span>Tap <em>Learn face</em> (or say “Jarvis, remember my face” / “this is Sam”) and look at the camera. Jarvis tags known faces by name.</span></p>
           <p>🖱️ <span>Mouse: drag to grab, <em>scroll wheel</em> over an orb to resize.</span></p>

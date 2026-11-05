@@ -58,7 +58,15 @@ export function quickReply(raw: string, device: string): Quick | null {
   const onPc = / on (my |the )?(pc|computer|laptop)$/.test(m);
   const msg = m.replace(/ on (my |the )?(pc|computer|laptop)$/, "").trim();
 
-  // Media keys
+  // Media keys & volume percentage
+  const vol = msg.match(/^(?:set (?:the )?)?volume (?:to |at )?(\d{1,3})\s*%?$/);
+  if (vol) {
+    const level = Math.max(0, Math.min(100, Number(vol[1])));
+    return { say: `Setting volume to ${level} percent.`, actions: [{ type: "set_volume", level }] };
+  }
+  if (/^(system status|pc status|computer status|diagnostics|system diagnostics|how('s| is) my (pc|computer|system)( doing)?|check my (pc|computer)|what('s| is) my battery( at)?|battery (level|status))$/.test(msg)) {
+    return { say: "All systems nominal, sir.", actions: [{ type: "pc_status" }] };
+  }
   if (/^(turn (the )?(volume|it|music) up|volume up|louder|turn up( the volume)?|increase( the)? volume)$/.test(msg)) return { say: "Louder it is.", actions: [{ type: "media", key: "volume_up" }] };
   if (/^(turn (the )?(volume|it|music) down|volume down|quieter|turn down( the volume)?|lower( the)? volume|decrease( the)? volume)$/.test(msg)) return { say: "Bringing it down.", actions: [{ type: "media", key: "volume_down" }] };
   if (/^(mute|unmute)( (it|the (sound|volume|pc|computer)))?$/.test(msg)) return { say: "Done.", actions: [{ type: "media", key: "mute" }] };
@@ -82,6 +90,11 @@ export function quickReply(raw: string, device: string): Quick | null {
       const label = t[3]?.trim();
       return { say: `${n} ${t[2]}${n === 1 ? "" : "s"}${label ? ` for the ${label}` : ""}. Timer's running.`, actions: [{ type: "timer", seconds, label }] };
     }
+  }
+  const tc = msg.match(/^(?:cancel|stop|clear|delete) (?:all )?(?:the |my )?(?:(.+?) )?timers?$/);
+  if (tc) {
+    const label = tc[1] && !/^(all|active|running)$/.test(tc[1]) ? tc[1].trim() : undefined;
+    return { say: label ? `Cancelled the ${label} timer.` : "Timer cancelled.", actions: [{ type: "timer_cancel", label }] };
   }
 
   // "play lofi on youtube" / "search youtube for X"

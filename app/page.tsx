@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { holoQueue, matchShape } from "@/lib/holoPlayground";
+import { getRecognizerClass, speakEnglish, type Recognizer } from "@/lib/speech";
 import GuestAccess from "./GuestAccess";
 import KnownFaces from "./KnownFaces";
+import Memories from "./Memories";
 
 const Gestures = dynamic(() => import("./Gestures"), { ssr: false });
 
@@ -12,9 +14,11 @@ type Status = "idle" | "listening" | "thinking" | "speaking";
 type ListenMode = "wake" | "command" | "followup";
 type Turn = { role: "user" | "assistant"; text: string };
 type Line = { who: "you" | "jarvis" | "system"; text: string; link?: string };
+type ActiveTimer = { id: number; label: string; endsAt: number };
 type DeviceAction =
   | { type: "open_url"; url: string }
   | { type: "timer"; seconds: number; label?: string }
+  | { type: "timer_cancel"; label?: string }
   | { type: "holo_add"; shape: string }
   | { type: "holo_clear" }
   | { type: "holo_scan" }
@@ -23,29 +27,8 @@ type DeviceAction =
   | { type: "holo_explode"; all?: boolean }
   | { type: "face_learn"; name?: string };
 
-// Minimal typing for the Web Speech API (not in TS's DOM lib).
-type SpeechResult = { isFinal: boolean; 0: { transcript: string } };
-type Recognizer = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start(): void;
-  stop(): void;
-  abort(): void;
-  onresult: ((e: { resultIndex: number; results: ArrayLike<SpeechResult> }) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((e: { error: string }) => void) | null;
-};
-
-const PREFERRED_VOICES = [/Google UK English Male/i, /Ryan.*United Kingdom/i, /George/i, /Daniel/i, /Thomas.*United Kingdom/i, /en-GB.*male/i];
 // "Jarvis" plus common mishearings by speech recognition.
 const WAKE = /\b(hey |hi |ok |okay )?(jarvis|jarvi|jervis|javis|jarvas|varvis|harvis|marvis|travis|service)\b[,.!?]?/i;
-
-function getRecognizerClass(): (new () => Recognizer) | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as { SpeechRecognition?: new () => Recognizer; webkitSpeechRecognition?: new () => Recognizer };
-  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
-}
 
 function store(key: string, value?: string): string {
   try {
@@ -70,9 +53,16 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [engine, setEngine] = useState("");
   const [canListen, setCanListen] = useState(true);
+  const [handsFree, setHandsFree] = useState(process.env.NEXT_PUBLIC_DEMO !== "1");
   const [followUp, setFollowUp] = useState(false);
   const [holo, setHolo] = useState(false);
   const [game, setGame] = useState(false);
+  const [showTools, setShowTools] = useState(false);
+  const [timers, setTimers] = useState<ActiveTimer[]>([]);
+  const [now, setNow] = useState(Date.now());
+  const [pcStats, setPcStats] = useState<{ cpu: number; memPct: number; battery: number | null } | null>(null);
+  const [statHist, setStatHist] = useState<{ cpu: number[]; mem: number[] }>({ cpu: [], mem: [] });
+  const [showLog, setShowLog] = useState(false);
 
   const history = useRef<Turn[]>([]);
   const rec = useRef<Recognizer | null>(null);
@@ -93,6 +83,10 @@ export default function Home() {
     setCanListen(!!getRecognizerClass());
     setPin(store("jarvis-pin"));
     setVoiceName(store("jarvis-voice"));
+    try {
+      const saved = JSON.parse(store("jarvis-timers") || "[]") as ActiveTimer[];
+      if (Array.isArray(saved)) setTimers(saved.filter((t) => t && t.endsAt > Date.now()));
+    } catch {}
     const load = () => setVoices(speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en")));
     load();
     speechSynthesis.onvoiceschanged = load;
@@ -108,41 +102,47 @@ export default function Home() {
     logEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [lines, interim]);
 
-  const pickVoice = useCallback((): SpeechSynthesisVoice | undefined => {
-    const all = speechSynthesis.getVoices();
-    if (voiceName) {
-      const v = all.find((x) => x.name === voiceName);
-      if (v) return v;
-    }
-    for (const re of PREFERRED_VOICES) {
-      const v = all.find((x) => re.test(`${x.name} ${x.lang}`));
-      if (v) return v;
-    }
-    return all.find((x) => x.lang === "en-GB") || all.find((x) => x.lang.startsWith("en"));
-  }, [voiceName]);
+  useEffect(() => {
+    if (role !== "owner") return;
+    const poll = () =>
+      fetch("/api/pc", { headers: { "x-jarvis-pin": pin } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d) return;
+          setPcStats(d);
+          setStatHist((h) => ({ cpu: [...h.cpu, d.cpu].slice(-20), mem: [...h.mem, d.memPct].slice(-20) }));
+        })
+        .catch(() => {});
+    poll();
+    const id = setInterval(poll, 10_000);
+    return () => clearInterval(id);
+  }, [role, pin]);
 
   /** Speak text; resolves when done. Split into sentences because Chrome cuts off long utterances. */
   const speak = useCallback(
-    (say: string) =>
-      new Promise<void>((resolve) => {
-        speechSynthesis.cancel();
-        const parts = say.match(/[^.!?]+[.!?]*/g) || [say];
-        const voice = pickVoice();
-        let left = parts.length;
-        setStat("speaking");
-        for (const p of parts) {
-          const u = new SpeechSynthesisUtterance(p.trim());
-          if (voice) u.voice = voice;
-          u.rate = 1.03;
-          u.pitch = 0.9;
-          u.onend = u.onerror = () => {
-            if (--left === 0) resolve();
-          };
-          speechSynthesis.speak(u);
-        }
-      }),
-    [pickVoice]
+    (say: string) => speakEnglish(say, voiceName, () => setStat("speaking")),
+    [voiceName]
   );
+
+  // Tick active countdown timers and persist them across reloads.
+  useEffect(() => {
+    store("jarvis-timers", JSON.stringify(timers));
+    if (!timers.length) return;
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, [timers]);
+
+  useEffect(() => {
+    const done = timers.filter((t) => t.endsAt <= now);
+    if (!done.length) return;
+    setTimers((ts) => ts.filter((t) => t.endsAt > now));
+    navigator.vibrate?.([300, 150, 300, 150, 300]);
+    for (const d of done) {
+      addLine({ who: "jarvis", text: `Your ${d.label} is done, sir.` });
+      speak(`Sir, your ${d.label} is done.`).then(() => afterReply());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now]);
 
   const runDeviceAction = useCallback(
     (a: DeviceAction) => {
@@ -176,15 +176,14 @@ export default function Home() {
         if (!win) addLine({ who: "system", text: "Tap to open:", link: a.url });
       } else if (a.type === "timer" && a.seconds > 0) {
         const label = a.label ? `${a.label} timer` : "timer";
-        addLine({ who: "system", text: `⏱ ${label} set for ${Math.round(a.seconds / 60) || a.seconds + "s"}${a.seconds >= 60 ? " min" : ""}` });
-        setTimeout(() => {
-          navigator.vibrate?.([300, 150, 300, 150, 300]);
-          addLine({ who: "jarvis", text: `Your ${label} is done, sir.` });
-          speak(`Sir, your ${label} is done.`);
-        }, a.seconds * 1000);
+        setNow(Date.now());
+        setTimers((ts) => [...ts, { id: Date.now() + Math.random(), label, endsAt: Date.now() + a.seconds * 1000 }]);
+      } else if (a.type === "timer_cancel") {
+        const q = a.label?.toLowerCase();
+        setTimers((ts) => (q ? ts.filter((t) => !t.label.toLowerCase().includes(q)) : []));
       }
     },
-    [speak]
+    []
   );
 
   // Declared below; refs let the recognizer callbacks reach the latest versions.
@@ -296,7 +295,8 @@ export default function Home() {
     r.onerror = (e) => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
         wakeOn.current = false;
-        addLine({ who: "system", text: "Microphone is blocked. Allow mic access for this site (it also needs https on phones), then tap the orb." });
+        setHandsFree(false);
+        addLine({ who: "system", text: "Microphone is blocked. Allow mic access for this site (it also needs https on phones), then tap Talk." });
       }
     };
     r.onend = () => {
@@ -345,7 +345,17 @@ export default function Home() {
     }
     if (!canListen) return;
     wakeOn.current = true; // tapping also retries the mic after it was blocked
+    setHandsFree(true);
     listen("command");
+  };
+
+  const toggleHandsFree = () => {
+    if (!canListen) return;
+    const next = !handsFree;
+    wakeOn.current = next;
+    setHandsFree(next);
+    if (next && statusRef.current === "idle") listen("wake");
+    else if (!next && statusRef.current === "idle") stopListening();
   };
 
   const submitText = (e: React.FormEvent) => {
@@ -368,170 +378,337 @@ export default function Home() {
   };
 
   const hint = {
-    idle: !canListen ? "Voice isn't supported in this browser. Type below." : wakeOn.current ? 'Say "Hey Jarvis…" or tap the orb' : "Tap the orb and speak, or type below",
-    listening: interim || (followUp ? "Anything else? Just speak…" : "Listening…"),
+    idle: !canListen ? "Type a command below" : handsFree ? 'Say "Hey Jarvis" or tap the orb' : "Tap the orb to speak",
+    listening: interim || "Listening…",
     thinking: "Thinking…",
-    speaking: "Tap to interrupt",
+    speaking: "Tap orb to stop",
   }[status];
 
+  const quickChips =
+    role === "demo"
+      ? [
+          { icon: "✨", label: "What can you do?", ask: "What can you do?" },
+          { icon: "▶", label: "Play Music", ask: "Play lofi on YouTube" },
+          { icon: "⏱", label: "1 Min Timer", ask: "Set a 1 minute timer" },
+          { icon: "🦾", label: "3D Helmet", ask: "Add a helmet hologram" },
+        ]
+      : [
+          { icon: "🌅", label: "Daily Briefing", ask: "Good morning, Jarvis" },
+          { icon: "▶", label: "Play Music", ask: "Play lofi on YouTube" },
+          { icon: "🌤", label: "Weather", ask: "What's the weather?" },
+          { icon: "⏱", label: "5 Min Timer", ask: "Set a 5 minute timer" },
+          ...(role === "owner" ? [{ icon: "💻", label: "PC Status", ask: "System status" }] : []),
+        ];
+
+  const hour = new Date().getHours();
+  const greeting = `${hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}${role === "owner" ? ", Bibek" : ""}.`;
+  const lastJarvis = [...lines].reverse().find((l) => l.who !== "you");
+  const lastYou = [...lines].reverse().find((l) => l.who === "you");
+  const statusWord = { idle: "ONLINE", listening: "LISTENING", thinking: "THINKING", speaking: "SPEAKING" }[status];
+  const goHome = () => {
+    setHolo(false);
+    setGame(false);
+    setShowTools(false);
+  };
+
   return (
-    <main className={`app ${status} ${holo ? "holo" : ""} ${game ? "game" : ""}`}>
-      <header>
-        <div className="brand">
-          J.A.R.V.I.S.
-          {engine && (
-            <span className="engine" title={engine === "demo" ? "Live demo: sample answers" : engine === "api" ? "Anthropic API" : "Your Claude app login"}>
-              {engine === "demo" ? "Demo" : engine === "api" ? "API" : "Claude"}
-            </span>
-          )}
-        </div>
-        <div className="controls">
+    <main className={`app dash ${status} ${holo ? "holo" : ""} ${game ? "game" : ""}`}>
+      {/* ---------- Left column: brand, navigation, system ---------- */}
+      <aside className="side side-left">
+        <button type="button" className="hpanel brand-panel" onClick={goHome} title="Jarvis Home">
+          <span className="brand-name">JARVIS</span>
+          <span className="brand-status">
+            {statusWord} <i className="status-dot" />
+          </span>
+        </button>
+
+        <nav className="hpanel nav-panel" aria-label="Main navigation">
+          <button type="button" className={`nav-item ${!holo && !game && !showTools && !showSettings ? "on" : ""}`} onClick={goHome}>
+            <span className="nav-ico">⌂</span> Home
+          </button>
           <button
-            className={`pill ${holo ? "on" : ""}`}
+            type="button"
+            className="nav-item"
             onClick={() => {
-              setHolo(!holo);
+              setHolo(true);
               setGame(false);
             }}
-            aria-pressed={holo}
-            title="Iron Man hologram view"
           >
-            <span className="dot" /> HOLO
+            <span className="nav-ico">✦</span> Holograms
           </button>
           <button
-            className={`pill ${game ? "on" : ""}`}
+            type="button"
+            className="nav-item"
             onClick={() => {
-              setGame(!game);
+              setGame(true);
               setHolo(false);
             }}
-            aria-pressed={game}
-            title="Drone Blaster game"
           >
-            <span className="dot" /> 🎮
+            <span className="nav-ico">🎮</span> Game
           </button>
-          {(role === "owner" || role === "demo") && (
-            <>
-              {role === "owner" && (
-                <a className="pill" href="/inspect" title="Inspect something">
-                  🔍
-                </a>
+          <button type="button" className={`nav-item ${showTools ? "on" : ""}`} onClick={() => setShowTools((t) => !t)}>
+            <span className="nav-ico">🧰</span> Tools <span className="nav-caret">{showTools ? "▾" : "▸"}</span>
+          </button>
+          {showTools && (
+            <div className="nav-sub">
+              {role === "owner" && <a href="/inspect">🔍 Photo Inspect</a>}
+              {(role === "owner" || role === "demo") && (
+                <>
+                  <a href="/pro">📋 Inspect Pro</a>
+                  <a href="/field">🚓 Field Assist</a>
+                </>
               )}
-              <a className="pill" href="/pro" title="Inspect Pro: rental condition reports">
-                📋
-              </a>
-              <a className="pill" href="/field" title="Field Assist (demo): reports, scene photos, translation, checklists">
-                🚓
-              </a>
+              <a href="/glasses">👓 Smart Glasses</a>
+            </div>
+          )}
+          <button type="button" className={`nav-item ${showSettings ? "on" : ""}`} onClick={() => setShowSettings(true)}>
+            <span className="nav-ico">⚙</span> Settings
+          </button>
+        </nav>
+
+        <div className="hpanel stats-panel">
+          {pcStats ? (
+            <>
+              <StatRow label="CPU Usage" value={`${pcStats.cpu}%`} data={statHist.cpu} />
+              <StatRow label="Memory Usage" value={`${pcStats.memPct}%`} data={statHist.mem} />
+              {pcStats.battery !== null && <StatRow label="Battery" value={`${pcStats.battery}%`} data={[]} pct={pcStats.battery} />}
+            </>
+          ) : (
+            <>
+              <StatRow label="Voice" value={canListen ? (handsFree ? "Wake word" : "Tap to talk") : "Text only"} data={[]} />
+              <StatRow label="AI Engine" value={engine === "demo" ? "Demo" : engine === "api" ? "API" : engine ? "Claude" : "…"} data={[]} />
             </>
           )}
-          <a className="pill" href="/glasses" title="Smart glasses view">
-            👓
-          </a>
-          <button className="icon" onClick={() => setShowSettings((s) => !s)} aria-label="Settings">
-            ⚙
-          </button>
         </div>
-      </header>
+      </aside>
 
       {showSettings && (
-        <section className="settings">
-          <label>
-            Voice
-            <select
-              value={voiceName}
-              onChange={(e) => {
-                setVoiceName(store("jarvis-voice", e.target.value));
-              }}
-            >
-              <option value="">Auto (British male)</option>
-              {voices.map((v) => (
-                <option key={v.name} value={v.name}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button className="pill" onClick={() => speak("Good evening, sir. All systems are online.")}>
-            Test voice
-          </button>
-          <button
-            className="pill"
-            onClick={() => {
-              history.current = [];
-              setLines([]);
-            }}
-          >
-            Clear chat
-          </button>
-          <button className="pill" onClick={() => setNeedPin(true)}>
-            {role === "guest" ? "Guest mode · change code" : "Change passcode"}
-          </button>
-          {role === "owner" && <GuestAccess pin={pin} />}
-          {role === "owner" && <KnownFaces pin={pin} />}
-        </section>
+        <div className="modal" onClick={() => setShowSettings(false)}>
+          <section className="settings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-head">
+              <strong>⚙ Settings</strong>
+              <button type="button" className="pill" onClick={() => setShowSettings(false)}>
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="settings-group">
+              <label className="settings-field">
+                <span>Voice</span>
+                <select
+                  value={voiceName}
+                  onChange={(e) => {
+                    setVoiceName(store("jarvis-voice", e.target.value));
+                  }}
+                >
+                  <option value="">Auto (British male)</option>
+                  {voices.map((v) => (
+                    <option key={v.name} value={v.name}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="settings-actions">
+                <button type="button" className="pill" onClick={() => speak("Good evening, sir. All systems are online.")}>
+                  🔊 Test Voice
+                </button>
+                {canListen && (
+                  <button type="button" className={`pill ${handsFree ? "on" : ""}`} onClick={toggleHandsFree}>
+                    <span className="dot" /> &ldquo;Hey Jarvis&rdquo;: {handsFree ? "ON" : "OFF"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="pill"
+                  onClick={() => {
+                    history.current = [];
+                    setLines([]);
+                  }}
+                >
+                  🗑 Clear Chat
+                </button>
+                <button type="button" className="pill" onClick={() => setNeedPin(true)}>
+                  🔑 Passcode
+                </button>
+                {pcStats && (
+                  <button type="button" className="pill" onClick={() => { setShowSettings(false); ask("System status"); }}>
+                    💻 CPU {pcStats.cpu}% · RAM {pcStats.memPct}%{pcStats.battery !== null ? ` · 🔋${pcStats.battery}%` : ""}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {role === "owner" && <Memories pin={pin} />}
+            {role === "owner" && <KnownFaces pin={pin} />}
+            {role === "owner" && <GuestAccess pin={pin} />}
+          </section>
+        </div>
       )}
 
-      <button className="orb" onClick={onOrb} aria-label={hint}>
-        <span className="ring r1" />
-        <span className="ring r2" />
-        <span className="ring r3" />
-        <span className="core" />
-      </button>
-      <p className="hint">{hint}</p>
+      {/* ---------- Center: hologram on its projector + conversation ---------- */}
+      <section className="center">
+        <div className="stage">
+          <div className="holo-beam" aria-hidden="true" />
+          <button className="orb" onClick={onOrb} aria-label={hint}>
+            <svg className="orb-ticks" viewBox="0 0 200 200" aria-hidden="true">
+              <circle cx="100" cy="100" r="96" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 8" opacity="0.55" />
+              <circle cx="100" cy="100" r="82" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="28 14 8 14" opacity="0.45" />
+              <circle cx="100" cy="100" r="64" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 6" opacity="0.6" />
+            </svg>
+            <span className="ring r1" />
+            <span className="ring r2" />
+            <span className="ring r3" />
+            <span className="core" />
+          </button>
 
-      <section className="log">
-        {lines.length === 0 && (
-          <p className="empty">
-            {role === "demo"
-              ? "Try: “What can you do?” · “Set a 1 minute timer” · “Play lofi on YouTube” · tap HOLO and pinch an orb · 🚓 Field Assist · 📋 Inspect Pro"
-              : role === "guest"
-              ? "Guest mode · Try: “What's the weather?” · “Play lofi on YouTube” · “Set a 5 minute timer” · or tap HOLO"
-              : "Try: “What's the weather?” · “Open YouTube and play lofi” · “Open Spotify on my PC” · “Set a 5 minute timer” · “Remember my exam is on Friday”"}
-          </p>
-        )}
-        {lines.map((l, i) => (
-          <div key={i} className={`line ${l.who}`}>
-            {l.text}{" "}
-            {l.link && (
-              <a href={l.link} target="_blank" rel="noreferrer">
-                {l.link.replace(/^https?:\/\//, "").slice(0, 40)}
-              </a>
+          <div className={`hpanel msg-box ${showLog ? "expanded" : ""}`}>
+            <button type="button" className="msg-reactor" onClick={onOrb} aria-label={hint} title={hint}>
+              <span />
+            </button>
+            <div className="msg-body">
+              {showLog && lines.length > 0 ? (
+                <div className="msg-log">
+                  {lines.map((l, i) => (
+                    <p key={i} className={`msg-line ${l.who}`}>
+                      <b>{l.who === "you" ? "You" : l.who === "jarvis" ? "Jarvis" : "•"}</b> {l.text}{" "}
+                      {l.link && (
+                        <a href={l.link} target="_blank" rel="noreferrer">
+                          open ↗
+                        </a>
+                      )}
+                    </p>
+                  ))}
+                  <div ref={logEnd} />
+                </div>
+              ) : status === "listening" ? (
+                <p className="msg-main">{interim || "Listening…"}</p>
+              ) : status === "thinking" ? (
+                <>
+                  {lastYou && <p className="msg-you">“{lastYou.text}”</p>}
+                  <p className="msg-main thinking-dots">Thinking</p>
+                </>
+              ) : lastJarvis ? (
+                <>
+                  {lastYou && <p className="msg-you">“{lastYou.text}”</p>}
+                  <p className="msg-main">
+                    {lastJarvis.text}{" "}
+                    {lastJarvis.link && (
+                      <a href={lastJarvis.link} target="_blank" rel="noreferrer">
+                        open ↗
+                      </a>
+                    )}
+                  </p>
+                </>
+              ) : (
+                <p className="msg-main">
+                  {greeting}
+                  <br />
+                  How can I assist you today?
+                </p>
+              )}
+            </div>
+            {lines.length > 0 && (
+              <button type="button" className="msg-history" onClick={() => setShowLog((s) => !s)} title="Conversation history">
+                {showLog ? "✕" : "☰"}
+              </button>
             )}
           </div>
-        ))}
-        <div ref={logEnd} />
+
+          <div className="projector" aria-hidden="true">
+            <span className="pj pj1" />
+            <span className="pj pj2" />
+            <span className="pj pj3" />
+          </div>
+        </div>
+
+        <p className="hint">{hint}</p>
+
+        {timers.length > 0 && (
+          <div className="timers">
+            {timers.map((t) => {
+              const left = Math.max(0, Math.ceil((t.endsAt - now) / 1000));
+              return (
+                <button
+                  key={t.id}
+                  className="pill timer-pill"
+                  onClick={() => setTimers((ts) => ts.filter((x) => x.id !== t.id))}
+                  title="Click to cancel timer"
+                >
+                  ⏱ {t.label} · <b>{Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}</b> ✕
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mobile-quick">
+          {quickChips.slice(0, 4).map((c) => (
+            <button key={c.label} className="chip" disabled={status === "thinking"} onClick={() => ask(c.ask)}>
+              <span>{c.icon}</span> {c.label}
+            </button>
+          ))}
+        </div>
+
+        <form className="typebar" onSubmit={submitText}>
+          {canListen && (
+            <button
+              type="button"
+              className={`mic-btn ${status === "listening" ? "on" : ""}`}
+              onClick={onOrb}
+              title={status === "listening" ? "Finish listening" : "Speak a command"}
+              aria-label="Voice input"
+            >
+              🎙
+            </button>
+          )}
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask Jarvis anything…" enterKeyHint="send" />
+          <button type="submit" disabled={!text.trim() || status === "thinking"}>
+            Send
+          </button>
+        </form>
       </section>
 
-      {(holo || game) && (
-        <>
-          <Gestures
-            onFace={(name) => {
-              // Greet each known person once per visit, if Jarvis isn't busy.
-              if (statusRef.current !== "idle") return;
-              const line = name.toLowerCase() === "bibek" ? "Welcome back, sir." : `Hello, ${name}.`;
-              addLine({ who: "jarvis", text: line });
-              speak(line).then(() => afterReply());
-            }}
-            holo={holo}
-            game={game}
-            status={status}
-            onError={(msg) => {
-              setHolo(false);
-              setGame(false);
-              addLine({ who: "system", text: msg });
-            }}
-          />
-          <p className="gesture-help">
-            {holo
-              ? "🤏 grab · 🤏🤏 2nd hand = resize · crash = 💥 · slow push = merge · hold still = ⚡ charge · ✋ swat · ✊ pull · say “Jarvis, add a helmet”"
-              : "☝️ aim with your finger · 🤏 pinch to fire"}
-          </p>
-        </>
-      )}
+      {/* ---------- Right column: clock, globe, quick actions ---------- */}
+      <aside className="side side-right">
+        <Clock />
+        <div className="hpanel globe-panel">
+          <Globe />
+          <span className="globe-label">GLOBAL NETWORK · ONLINE</span>
+        </div>
+        <div className="hpanel quick-panel">
+          <h4>Quick Actions</h4>
+          {quickChips.map((c) => (
+            <button key={c.label} type="button" className="qa-item" disabled={status === "thinking"} onClick={() => ask(c.ask)}>
+              <span className="qa-ico">{c.icon}</span> {c.label}
+            </button>
+          ))}
+        </div>
+      </aside>
 
-      <form className="typebar" onSubmit={submitText}>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Or type a command…" enterKeyHint="send" />
-        <button disabled={!text.trim() || status === "thinking"}>Send</button>
-      </form>
+      {(holo || game) && (
+        <Gestures
+          onFace={(name) => {
+            // Greet each known person once per visit, if Jarvis isn't busy.
+            if (statusRef.current !== "idle") return;
+            const line = name.toLowerCase() === "bibek" ? "Welcome back, sir." : `Hello, ${name}.`;
+            addLine({ who: "jarvis", text: line });
+            speak(line).then(() => afterReply());
+          }}
+          holo={holo}
+          game={game}
+          status={status}
+          onExit={() => {
+            setHolo(false);
+            setGame(false);
+          }}
+          onError={(msg) => {
+            setHolo(false);
+            setGame(false);
+            addLine({ who: "system", text: msg });
+          }}
+        />
+      )}
 
       {needPin && (
         <div className="modal">
@@ -556,5 +733,82 @@ export default function Home() {
         </div>
       )}
     </main>
+  );
+}
+
+/** Live clock panel (own component so only it re-renders every second). */
+function Clock() {
+  const [d, setD] = useState<Date | null>(null);
+  useEffect(() => {
+    setD(new Date());
+    const id = setInterval(() => setD(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="hpanel clock-panel">
+      <span className="clock-time">{d ? d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "--:--"}</span>
+      <span className="clock-date">{d ? d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) : ""}</span>
+    </div>
+  );
+}
+
+/** Spinning wireframe globe with blinking network nodes. */
+function Globe() {
+  const nodes = [
+    [70, 62], [88, 48], [112, 58], [128, 74], [96, 92], [140, 52], [62, 84], [118, 100], [150, 86], [80, 110],
+  ];
+  return (
+    <svg className="globe" viewBox="0 0 200 150" aria-hidden="true">
+      <defs>
+        <radialGradient id="globeFill" cx="45%" cy="40%" r="60%">
+          <stop offset="0%" stopColor="rgba(63,216,255,0.28)" />
+          <stop offset="100%" stopColor="rgba(63,216,255,0.02)" />
+        </radialGradient>
+      </defs>
+      <circle cx="100" cy="75" r="62" fill="url(#globeFill)" stroke="rgba(63,216,255,0.7)" strokeWidth="1.2" />
+      {[-40, -20, 0, 20, 40].map((y) => {
+        const rx = Math.sqrt(62 * 62 - y * y);
+        return <ellipse key={y} cx="100" cy={75 + y} rx={rx} ry={rx * 0.12} fill="none" stroke="rgba(63,216,255,0.28)" strokeWidth="0.8" />;
+      })}
+      {[0, 1, 2, 3].map((i) => (
+        <ellipse key={i} cx="100" cy="75" rx="62" ry="62" fill="none" stroke="rgba(63,216,255,0.35)" strokeWidth="0.8">
+          <animate attributeName="rx" values="62;0;62" dur="8s" begin={`${-i * 2}s`} repeatCount="indefinite" />
+        </ellipse>
+      ))}
+      {nodes.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="1.8" fill="#bff4ff">
+          <animate attributeName="opacity" values="0.2;1;0.2" dur={`${1.6 + (i % 4) * 0.5}s`} repeatCount="indefinite" />
+        </circle>
+      ))}
+      <path d="M70 62 Q90 30 112 58 M112 58 Q135 40 150 86 M62 84 Q85 120 118 100" fill="none" stroke="rgba(191,244,255,0.5)" strokeWidth="0.8" strokeDasharray="3 3">
+        <animate attributeName="stroke-dashoffset" values="0;-12" dur="1.2s" repeatCount="indefinite" />
+      </path>
+    </svg>
+  );
+}
+
+/** One system stat line with a mini sparkline (or a progress bar when `pct` is given). */
+function StatRow({ label, value, data, pct }: { label: string; value: string; data: number[]; pct?: number }) {
+  const pts = data.length > 1 ? data.map((v, i) => `${(i / (data.length - 1)) * 100},${22 - (Math.min(100, v) / 100) * 20}`).join(" ") : "";
+  return (
+    <div className="stat-row">
+      <div className="stat-top">
+        <span>{label}</span>
+        <b>{value}</b>
+      </div>
+      {pts ? (
+        <svg className="spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
+          <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+        </svg>
+      ) : pct !== undefined ? (
+        <div className="stat-bar">
+          <span style={{ width: `${pct}%` }} />
+        </div>
+      ) : (
+        <div className="stat-bar idle">
+          <span />
+        </div>
+      )}
+    </div>
   );
 }

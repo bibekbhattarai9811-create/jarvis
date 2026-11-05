@@ -31,6 +31,7 @@ function speak(text: string) {
 
 export default function Inspect() {
   const video = useRef<HTMLVideoElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const [facing, setFacing] = useState<"user" | "environment">("environment");
   const [camError, setCamError] = useState("");
@@ -106,7 +107,10 @@ export default function Inspect() {
     out.width = Math.round(crop.w * k);
     out.height = Math.round(crop.h * k);
     out.getContext("2d")!.drawImage(frame, crop.x, crop.y, crop.w, crop.h, 0, 0, out.width, out.height);
-    const image = out.toDataURL("image/jpeg", 0.88);
+    await sendImage(out.toDataURL("image/jpeg", 0.88));
+  };
+
+  const sendImage = async (image: string) => {
     setShot(image);
     setBusy("Inspecting…");
     try {
@@ -128,6 +132,27 @@ export default function Inspect() {
       setBusy("");
       setTap(null);
     }
+  };
+
+  const onUpload = (file?: File | null) => {
+    if (!file || busy) return;
+    setError("");
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const out = document.createElement("canvas");
+      out.width = Math.max(1, Math.round(img.width * k));
+      out.height = Math.max(1, Math.round(img.height * k));
+      out.getContext("2d")!.drawImage(img, 0, 0, out.width, out.height);
+      URL.revokeObjectURL(url);
+      sendImage(out.toDataURL("image/jpeg", 0.88));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      setError("Couldn't read that image file.");
+    };
+    img.src = url;
   };
 
   const onTap = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -188,6 +213,19 @@ export default function Inspect() {
             <button className="btn" onClick={() => run(null)} disabled={!!busy || !!camError}>
               Inspect whole view
             </button>
+            <button className="btn ghost" onClick={() => fileInput.current?.click()} disabled={!!busy}>
+              📁 Upload photo
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                onUpload(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
             <button className="btn ghost" onClick={() => setFacing(facing === "user" ? "environment" : "user")} disabled={!!busy}>
               🔄 {facing === "user" ? "Back camera" : "Front camera"}
             </button>

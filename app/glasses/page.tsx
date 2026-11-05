@@ -13,12 +13,26 @@ export default function GlassesSim() {
   const [frameOn, setFrameOn] = useState(true);
   // /glasses?report=<id> shows the live Inspect Pro view in the lens instead of the voice assistant.
   const [hudSrc, setHudSrc] = useState<string | null>(null);
+  const [latestField, setLatestField] = useState<string | null>(null);
+  const [latestReport, setLatestReport] = useState<string | null>(null);
   useEffect(() => {
     const q = new URLSearchParams(location.search);
     const ok = (v: string | null) => !!v && /^[a-z0-9]{6,20}$/.test(v);
     const r = q.get("report");
     const f = q.get("field");
     setHudSrc(ok(f) ? `/hud?field=${f}` : ok(r) ? `/hud?report=${r}` : "/hud");
+    let pin = "";
+    try {
+      pin = localStorage.getItem("jarvis-pin") || "";
+    } catch {}
+    fetch("/api/field", { headers: { "x-jarvis-pin": pin } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => d?.incidents?.[0]?.id && setLatestField(d.incidents[0].id))
+      .catch(() => {});
+    fetch("/api/pro/reports", { headers: { "x-jarvis-pin": pin } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => d?.reports?.[0]?.id && setLatestReport(d.reports[0].id))
+      .catch(() => {});
   }, []);
   // Place the display inside the right lens. The frame SVG is drawn with "slice" (cover) scaling over a viewBox:
   // the whole glasses (1000×600) on wide screens, a close-up of the right lens on portrait phones.
@@ -102,7 +116,26 @@ export default function GlassesSim() {
 
       <div className="sim-bar" onClick={(e) => e.stopPropagation()}>
         <a href="/">← Jarvis</a>
-        <span>Meta Ray-Ban Display · simulated view</span>
+        <div className="sim-modes">
+          <button className={hudSrc === "/hud" ? "on" : ""} onClick={() => setHudSrc("/hud")}>
+            🎙 Voice
+          </button>
+          {latestField && (
+            <button className={hudSrc?.startsWith("/hud?field=") ? "on" : ""} onClick={() => setHudSrc(`/hud?field=${latestField}`)}>
+              🚓 Field HUD
+            </button>
+          )}
+          {latestReport && (
+            <button className={hudSrc?.startsWith("/hud?report=") ? "on" : ""} onClick={() => setHudSrc(`/hud?report=${latestReport}`)}>
+              📋 Inspect HUD
+            </button>
+          )}
+          {hudSrc && (
+            <a className="sim-link" href={hudSrc} title="Open raw 600×600 glasses display">
+              ⛶ Full HUD
+            </a>
+          )}
+        </div>
         <button onClick={() => setFrameOn((f) => !f)}>{frameOn ? "Hide frames" : "Show frames"}</button>
       </div>
       <p className="sim-hint">Tap anywhere or press Space = pinch to talk · tap again to stop</p>
@@ -117,10 +150,12 @@ export default function GlassesSim() {
         .lens-display { position: absolute; aspect-ratio: 1; transform: translate(-50%, -50%); mix-blend-mode: screen; opacity: .93; }
         /* The HUD sizes itself in vmin, so it fills whatever square it's given. */
         .lens-display iframe { width: 100%; height: 100%; border: 0; background: #000; display: block; }
-        .sim-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 12px; align-items: center; justify-content: space-between;
-          padding: 10px 16px; background: linear-gradient(#000c, #0000); color: #cfefff; font: 13px "Segoe UI", system-ui, sans-serif; }
+        .sim-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 10px; align-items: center; justify-content: space-between;
+          flex-wrap: wrap; padding: 10px 16px; background: linear-gradient(#000d, #0000); color: #cfefff; font: 13px "Segoe UI", system-ui, sans-serif; }
         .sim-bar a { color: #3fd8ff; text-decoration: none; }
-        .sim-bar button { background: #0b1a26; color: #cfefff; border: 1px solid #3fd8ff66; border-radius: 99px; padding: 5px 12px; cursor: pointer; }
+        .sim-modes { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .sim-bar button, .sim-link { background: #0b1a26; color: #cfefff !important; border: 1px solid #3fd8ff66; border-radius: 99px; padding: 5px 12px; cursor: pointer; font-size: 12px; }
+        .sim-bar button.on { border-color: #3fd8ff; box-shadow: 0 0 12px #3fd8ff66; background: #102a3d; }
         .sim-hint { position: absolute; bottom: 12px; left: 0; right: 0; margin: 0; text-align: center; color: #cfefffcc;
           font: 12px "Segoe UI", system-ui, sans-serif; text-shadow: 0 1px 3px #000; padding: 0 16px; }
       `}</style>

@@ -14,12 +14,16 @@ export function listMemory(): string[] {
 
 function save(notes: string[]) {
   fs.mkdirSync(path.dirname(FILE), { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(notes, null, 2));
+  const tmp = `${FILE}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(notes, null, 2));
+  fs.renameSync(tmp, FILE);
 }
 
 export function remember(note: string) {
+  const clean = note.trim().slice(0, 400);
+  if (!clean) return;
   const notes = listMemory();
-  if (!notes.includes(note)) save([...notes, note].slice(-100));
+  if (!notes.includes(clean)) save([...notes, clean].slice(-100));
 }
 
 export function forget(match: string): number {

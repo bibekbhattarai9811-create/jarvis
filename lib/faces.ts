@@ -20,7 +20,9 @@ export function listFaces(): KnownFace[] {
 
 function save(faces: KnownFace[]) {
   fs.mkdirSync(path.dirname(FILE), { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(faces));
+  const tmp = `${FILE}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(faces));
+  fs.renameSync(tmp, FILE);
 }
 
 const valid = (d: unknown): d is number[] => Array.isArray(d) && d.length === 128 && d.every((x) => typeof x === "number" && Number.isFinite(x) && Math.abs(x) < 2);

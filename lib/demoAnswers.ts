@@ -15,8 +15,8 @@ const FAQ: [RegExp, string][] = [
   [/\bjoke\b/, "I would tell you a joke about my HOLO playground, but it would just blow up."],
 ];
 
-const PC_ONLY = new Set(["media", "open_app", "lock_pc"]);
-const DEMO_ACTIONS = new Set(["open_url", "timer", "holo_add", "holo_clear", "holo_scan", "holo_color", "holo_scale", "holo_explode", "face_learn"]);
+const PC_ONLY = new Set(["media", "set_volume", "pc_status", "open_app", "lock_pc"]);
+const DEMO_ACTIONS = new Set(["open_url", "timer", "timer_cancel", "holo_add", "holo_clear", "holo_scan", "holo_color", "holo_scale", "holo_explode", "face_learn"]);
 
 export function demoReply(message: string): { say: string; actions: Action[] } {
   const quick = quickReply(message, "phone");

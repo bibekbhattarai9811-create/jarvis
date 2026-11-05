@@ -1,17 +1,66 @@
-// Browser speech helpers for Field Assist: dictate in any language, speak a line in any language.
+// Browser speech helpers for Jarvis, HUD, and Field Assist: dictate in any language, speak a line in any language.
 
-type Recognizer = {
+export type SpeechResult = { isFinal: boolean; 0: { transcript: string } };
+export type Recognizer = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
   start(): void;
   stop(): void;
-  onresult: ((e: { results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
+  abort(): void;
+  onresult: ((e: { resultIndex: number; results: ArrayLike<SpeechResult> }) => void) | null;
   onend: (() => void) | null;
   onerror: ((e: { error: string }) => void) | null;
 };
 
-export const canListen = () => typeof window !== "undefined" && !!((window as unknown as Record<string, unknown>).SpeechRecognition || (window as unknown as Record<string, unknown>).webkitSpeechRecognition);
+export const PREFERRED_VOICES = [/Google UK English Male/i, /Ryan.*United Kingdom/i, /George/i, /Daniel/i, /Thomas.*United Kingdom/i, /en-GB.*male/i, /en-GB/i];
+
+export function getRecognizerClass(): (new () => Recognizer) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as { SpeechRecognition?: new () => Recognizer; webkitSpeechRecognition?: new () => Recognizer };
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+}
+
+export const canListen = () => !!getRecognizerClass();
+
+export function pickEnglishVoice(voiceName?: string): SpeechSynthesisVoice | undefined {
+  if (typeof speechSynthesis === "undefined") return undefined;
+  const all = speechSynthesis.getVoices();
+  if (voiceName) {
+    const v = all.find((x) => x.name === voiceName);
+    if (v) return v;
+  }
+  for (const re of PREFERRED_VOICES) {
+    const v = all.find((x) => re.test(`${x.name} ${x.lang}`));
+    if (v) return v;
+  }
+  return all.find((x) => x.lang === "en-GB") || all.find((x) => x.lang.startsWith("en"));
+}
+
+/** Speak English text in Jarvis's voice; resolves when done. Split into sentences because Chrome cuts off long utterances. */
+export function speakEnglish(text: string, voiceName?: string, onStart?: () => void): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (typeof speechSynthesis === "undefined") {
+      resolve();
+      return;
+    }
+    speechSynthesis.cancel();
+    const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
+    const voice = pickEnglishVoice(voiceName);
+    let left = parts.length;
+    onStart?.();
+    for (const p of parts) {
+      const u = new SpeechSynthesisUtterance(p.trim());
+      if (voice) u.voice = voice;
+      u.rate = 1.03;
+      u.pitch = 0.9;
+      u.onend = u.onerror = () => {
+        if (--left === 0) resolve();
+      };
+      speechSynthesis.speak(u);
+    }
+  });
+}
 
 /**
  * Start dictation. `long` keeps listening through pauses (for field notes) until stop() is called.

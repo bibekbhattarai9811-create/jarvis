@@ -6,23 +6,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { holoQueue } from "@/lib/holoPlayground";
+import { getRecognizerClass, speakEnglish, type Recognizer } from "@/lib/speech";
 import InspectHud from "./InspectHud";
 import FieldHud from "./FieldHud";
 
 type Status = "idle" | "listening" | "thinking" | "speaking";
 type Turn = { role: "user" | "assistant"; text: string };
 type Timer = { id: number; label: string; endsAt: number };
-type Recognizer = {
-  lang: string;
-  interimResults: boolean;
-  start(): void;
-  stop(): void;
-  onresult: ((e: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((e: { error: string }) => void) | null;
-};
-
-const PREFERRED_VOICES = [/Google UK English Male/i, /Ryan.*United Kingdom/i, /George/i, /Daniel/i, /en-GB/i];
 
 /** /hud = voice assistant; /hud?report=<id> = live Inspect Pro view; /hud?field=<id> = Field Assist view. */
 export default function HudPage() {
@@ -66,29 +56,15 @@ function VoiceHud() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now]);
 
-  const say = (text: string, shown = text) =>
-    new Promise<void>((resolve) => {
-      setReply(shown);
-      speechSynthesis.cancel();
-      const voices = speechSynthesis.getVoices();
-      const voice = PREFERRED_VOICES.map((re) => voices.find((v) => re.test(`${v.name} ${v.lang}`))).find(Boolean);
-      const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
-      let left = parts.length;
-      set("speaking");
-      for (const p of parts) {
-        const u = new SpeechSynthesisUtterance(p.trim());
-        if (voice) u.voice = voice;
-        u.rate = 1.03;
-        u.pitch = 0.9;
-        u.onend = u.onerror = () => {
-          if (--left === 0) {
-            set("idle");
-            resolve();
-          }
-        };
-        speechSynthesis.speak(u);
-      }
-    });
+  const say = async (text: string, shown = text) => {
+    setReply(shown);
+    let voiceName = "";
+    try {
+      voiceName = localStorage.getItem("jarvis-voice") || "";
+    } catch {}
+    await speakEnglish(text, voiceName, () => set("speaking"));
+    set("idle");
+  };
 
   const ask = async (message: string) => {
     set("thinking");
@@ -109,6 +85,10 @@ function VoiceHud() {
       history.current = [...history.current, { role: "user" as const, text: message }, { role: "assistant" as const, text: data.say }].slice(-12);
       for (const a of data.actions || []) {
         if (a.type === "timer" && a.seconds > 0) setTimers((ts) => [...ts, { id: Date.now() + Math.random(), label: a.label ? `${a.label} timer` : "timer", endsAt: Date.now() + a.seconds * 1000 }]);
+        if (a.type === "timer_cancel") {
+          const q = a.label?.toLowerCase();
+          setTimers((ts) => (q ? ts.filter((t) => !t.label.toLowerCase().includes(q)) : []));
+        }
         if (a.type === "holo_add") holoQueue.push({ op: "add", shape: a.shape });
       }
       await say(data.say);
@@ -118,8 +98,7 @@ function VoiceHud() {
   };
 
   const listen = () => {
-    const w = window as unknown as { SpeechRecognition?: new () => Recognizer; webkitSpeechRecognition?: new () => Recognizer };
-    const Rec = w.SpeechRecognition || w.webkitSpeechRecognition;
+    const Rec = getRecognizerClass();
     if (!Rec) {
       setReply("Voice isn't supported in this browser.");
       return;

@@ -127,7 +127,7 @@ export const record = (i: Incident, by: string, action: string, detail?: string,
   i.history.push({ at: new Date().toISOString(), by: by || i.officer || "Officer", action, detail, before });
 
 // One write at a time per incident (photos, notes and the glasses can all update it at once).
-const locks = new Map<string, Promise<unknown>>();
+const locks = ((globalThis as { __fieldLocks?: Map<string, Promise<unknown>> }).__fieldLocks ||= new Map());
 export function mutate<T>(id: string, fn: (i: Incident) => T): Promise<T> {
   const run = (locks.get(id) || Promise.resolve()).then(() => {
     const i = getIncident(id);

@@ -9,8 +9,11 @@ export type Action =
   | { type: "open_url"; url: string; where?: "device" | "pc" }
   | { type: "open_app"; name: string }
   | { type: "media"; key: "play_pause" | "next" | "previous" | "volume_up" | "volume_down" | "mute" }
+  | { type: "set_volume"; level: number }
+  | { type: "pc_status" }
   | { type: "lock_pc" }
   | { type: "timer"; seconds: number; label?: string }
+  | { type: "timer_cancel"; label?: string }
   | { type: "remember"; note: string }
   | { type: "forget"; match: string }
   | { type: "holo_add"; shape: string }
@@ -37,7 +40,7 @@ Never reveal anything about the owner of this assistant, their computer, files, 
 Reply with ONLY a JSON object: {"say": "what to speak", "actions": [...]}
 Allowed actions (nothing else):
 - {"type":"open_url","url":"https://...","where":"device"}  open a site on the guest's own device
-- {"type":"timer","seconds":300,"label":"pasta"}
+- {"type":"timer","seconds":300,"label":"pasta"} / {"type":"timer_cancel","label":"pasta"}
 - {"type":"holo_add","shape":"helmet"} / {"type":"holo_clear"} / {"type":"holo_scan"} / {"type":"holo_color","color":"red"} / {"type":"holo_scale","factor":1.5} / {"type":"holo_explode"}  hologram playground
 If asked to control a PC, open apps, or remember things, say that's not available in guest mode.`;
 }
@@ -66,6 +69,7 @@ Actions:
 - {"type":"media","key":"play_pause"|"next"|"previous"|"volume_up"|"volume_down"|"mute"}  PC media keys
 - {"type":"lock_pc"}
 - {"type":"timer","seconds":300,"label":"pasta"}  timer/reminder on the device he's using
+- {"type":"timer_cancel","label":"pasta"}  cancel a running timer (omit label to cancel all timers)
 - {"type":"remember","note":"..."}  save a lasting fact or preference he tells you
 - {"type":"forget","match":"..."}  delete remembered notes containing this text
 - {"type":"holo_add","shape":"helmet"}  spawn a hologram in his holo playground (it opens automatically). Shapes: helmet (Iron Man helmet), reactor, cube, globe, gyroscope, crystal, pyramid, torus, dna, atom, star, heart. For anything else pick the closest and say so. Repeat the action to add several.
@@ -126,16 +130,19 @@ async function askApi(history: Turn[], message: string, system: string): Promise
   throw new Error("Claude kept pausing.");
 }
 
+let cachedClaude: string | null = null;
+
 /** Find the Claude Code CLI: $CLAUDE_BIN, then PATH, then the copy bundled with the Claude desktop app. */
 function findClaude(): string | null {
   const env = process.env.CLAUDE_BIN;
   if (env && fs.existsSync(env)) return env;
+  if (cachedClaude && fs.existsSync(cachedClaude)) return cachedClaude;
   try {
     const cmd = process.platform === "win32" ? "where claude" : "which claude";
     const hits = execSync(cmd, { stdio: ["ignore", "pipe", "ignore"] }).toString().split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
     // On Windows, npm also installs an extensionless shell script that can't be spawned; prefer .exe/.cmd.
     const hit = process.platform === "win32" ? hits.find((h) => /\.(exe|cmd)$/i.test(h)) : hits[0];
-    if (hit) return hit;
+    if (hit) return (cachedClaude = hit);
   } catch {}
   const base = path.join(process.env.APPDATA || "", "Claude", "claude-code");
   try {
@@ -146,7 +153,7 @@ function findClaude(): string | null {
         if (fs.existsSync(file) && (!best || fs.statSync(file).mtimeMs > best.mtime)) best = { file, mtime: fs.statSync(file).mtimeMs };
       }
     }
-    if (best) return best.file;
+    if (best) return (cachedClaude = best.file);
   } catch {}
   return null;
 }

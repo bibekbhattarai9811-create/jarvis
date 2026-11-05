@@ -1,7 +1,7 @@
 import { denied, json, logSecurity, roleOf } from "@/lib/auth";
 import { think, type Action, type Turn } from "@/lib/brain";
 import { forget, remember } from "@/lib/memory";
-import { runOnPc } from "@/lib/pc";
+import { pcStatusLine, runOnPc } from "@/lib/pc";
 import { quickReply } from "@/lib/quick";
 import { demoReply } from "@/lib/demoAnswers";
 import { isDemo } from "@/lib/paths";
@@ -13,9 +13,9 @@ const BRIEFING = /^(hey |ok )?(jarvis,? )?(good morning|morning briefing|brief m
 const BRIEFING_ASK =
   "Give me my daily briefing, spoken, under 30 seconds: greet me for the time of day; today's weather where I am (search it: temperature now, high and low, chance of rain); anything you remember about me that matters today or soon (exams, deadlines, plans); and one top news headline. Natural sentences, no lists.";
 
-const isPcAction = (a: Action) => a.type === "open_app" || a.type === "media" || a.type === "lock_pc" || (a.type === "open_url" && a.where === "pc");
+const isPcAction = (a: Action) => a.type === "open_app" || a.type === "media" || a.type === "set_volume" || a.type === "lock_pc" || (a.type === "open_url" && a.where === "pc");
 // What a guest's reply may do: things that happen on their own screen, nothing on this PC or in your memory.
-const GUEST_ACTIONS = new Set(["open_url", "timer", "holo_add", "holo_clear", "holo_scan", "holo_color", "holo_scale", "holo_explode"]);
+const GUEST_ACTIONS = new Set(["open_url", "timer", "timer_cancel", "holo_add", "holo_clear", "holo_scan", "holo_color", "holo_scale", "holo_explode"]);
 
 // Guests use your Claude subscription, so they share a budget: 40 messages per hour.
 const g = globalThis as unknown as { __jarvisGuestUse?: number[] };
@@ -61,7 +61,9 @@ export async function POST(req: Request) {
         deviceActions.push(a.type === "open_url" ? { ...a, where: "device" } : a);
       } else if (a.type === "remember") remember(a.note);
       else if (a.type === "forget") forget(a.match);
-      else if (isPcAction(a)) {
+      else if (a.type === "pc_status") {
+        reply.say = await pcStatusLine();
+      } else if (isPcAction(a)) {
         const err = await runOnPc(a);
         if (err) problems.push(err);
       } else deviceActions.push(a);

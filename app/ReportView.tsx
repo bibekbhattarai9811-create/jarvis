@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Inspection } from "@/lib/brain";
 
 export type Report = Inspection & { id: string; at: string; note: string; image?: string | null };
@@ -15,6 +16,7 @@ const CONDITION_LABEL: Record<Inspection["condition"], string> = {
 /** One inspection report: photo with numbered issue markers, condition, issues, next steps, safety. */
 export default function ReportView({ report }: { report: Report }) {
   const r = report;
+  const [active, setActive] = useState<number | null>(null);
   return (
     <article className="report">
       <header className="report-head">
@@ -35,7 +37,20 @@ export default function ReportView({ report }: { report: Report }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={r.image} alt={r.object} />
           {r.issues.map((i, n) => (
-            <span key={n} className={`marker ${i.severity}`} style={{ left: `${i.x * 100}%`, top: `${i.y * 100}%` }} title={i.label}>
+            <span
+              key={n}
+              className={`marker ${i.severity} ${active === n ? "active" : ""}`}
+              style={{
+                left: `${i.x * 100}%`,
+                top: `${i.y * 100}%`,
+                cursor: "pointer",
+                transform: active === n ? "translate(-50%, -50%) scale(1.35)" : "translate(-50%, -50%)",
+                zIndex: active === n ? 3 : 1,
+                transition: "transform 0.15s",
+              }}
+              onClick={() => setActive(active === n ? null : n)}
+              title={`${n + 1}. ${i.label}`}
+            >
               {n + 1}
             </span>
           ))}
@@ -49,10 +64,21 @@ export default function ReportView({ report }: { report: Report }) {
 
       {r.issues.length > 0 ? (
         <section>
-          <h3>Findings</h3>
+          <h3>Findings {r.issues.length > 1 && <small style={{ fontWeight: 400, opacity: 0.7 }}>(tap a pin or item to highlight)</small>}</h3>
           <ol className="report-issues">
             {r.issues.map((i, n) => (
-              <li key={n}>
+              <li
+                key={n}
+                onClick={() => setActive(active === n ? null : n)}
+                style={{
+                  cursor: "pointer",
+                  padding: "6px 8px",
+                  borderRadius: 10,
+                  background: active === n ? "rgba(63, 216, 255, 0.14)" : "transparent",
+                  border: active === n ? "1px solid rgba(63, 216, 255, 0.45)" : "1px solid transparent",
+                  transition: "background 0.15s, border-color 0.15s",
+                }}
+              >
                 <span className={`sev ${i.severity}`}>{i.severity}</span>
                 <div>
                   <strong>
